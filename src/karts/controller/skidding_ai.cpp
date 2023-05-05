@@ -345,8 +345,8 @@ void SkiddingAI::update(int ticks)
     determineTrackDirection();
 
     /*Response handling functions*/
-    handleAccelerationAndBraking(ticks);
-    handleSteering(dt);
+    handleAccelerationAndBraking(ticks);  // TODO: NAI: `m_controls->setAccel(stk_config->m_ai_acceleration$*strength$); m_controls->setBrake($true|false$);`
+    handleSteering(dt);  // TODO: NAI: replace with `m_controls->setSteer($steer_angle$);` (where `steer_angle` has been given by the Neural Network)
     handleRescue(dt);
 
     // Make sure that not all AI karts use the zipper at the same
@@ -964,12 +964,12 @@ bool SkiddingAI::steerToAvoid(const std::vector<const ItemState *> &items_to_avo
  *  has, how much nitro it has etc. Though atm it picks the first good item,
  *  and tries to avoid any bad items on the track.
  *  \param item The item which is considered for picking/avoidance.
- *  \param kart_aim_angle The angle of the line from the kart to the aim point.
+ *  \param kart_aim_direction The angle of the line from the kart to the aim point.
  *         If aim_angle==kart_heading then the kart is driving towards the
  *         item.
- *  \param item_to_avoid A pointer to a previously selected item to avoid
+ *  \param items_to_avoid A pointer to a previously selected item to avoid
  *         (NULL if no item was avoided so far).
- *  \param item_to_collect A pointer to a previously selected item to collect.
+ *  \param items_to_collect A pointer to a previously selected item to collect.
  */
 void SkiddingAI::evaluateItems(const ItemState *item, Vec3 kart_aim_direction,
                                std::vector<const ItemState *> *items_to_avoid,
@@ -2577,7 +2577,7 @@ void SkiddingAI::checkCrashes(const Vec3& pos )
  *  a left turn, the kart will aim to the left point (and vice versa for
  *  right turn) - slightly offset by the width of the kart to avoid that
  *  the kart is getting off track.
- *  \param aim_position The point to aim for, i.e. the point that can be
+ *  \param result The point to aim for, i.e. the point that can be
  *         driven to in a straight line.
  *  \param last_node The graph node index in which the aim_position is.
 */
@@ -2889,6 +2889,34 @@ void SkiddingAI::handleCurve()
 #endif
 
 }   // handleCurve
+
+/**
+ * \brief Compute the distance to the road side following the given angle
+ * \param angle angle of distance check from ahead
+ * \param pos position of the kart
+ * \return the distance to the road side
+ */
+float SkiddingAI::distanceToSide(float angle, const Vec3& pos)
+{
+    int steps = 1000;
+    int d_node = m_track_node;
+    Vec3 dir_vec = m_kart->getVelocity().rotate(m_kart->getNormal(), angle).normalized();
+    for (int d = 1; steps > d; ++d)
+    {
+        Vec3 step_coord = pos + dir_vec * m_kart_length * float(d);
+
+        if (d_node != Graph::UNKNOWN_SECTOR &&
+            m_next_node_index[d_node] != -1)
+            DriveGraph::get()->findRoadSector(step_coord, &d_node);
+
+        if (d_node == Graph::UNKNOWN_SECTOR)
+        {
+            return float(d) * m_kart_length;
+        }
+    }
+    return float(steps) * m_kart_length;
+}   // distanceToSide
+
 // ----------------------------------------------------------------------------
 /** Determines if the kart should skid. The base implementation enables
  *  skidding

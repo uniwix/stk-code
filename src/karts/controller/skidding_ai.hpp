@@ -295,6 +295,10 @@ private:
     virtual void setSteering(float angle, float dt);
     void handleCurve();
 
+    /*Functions created to implement neural network AI
+     */
+    float distanceToSide(float angle, const Vec3& pos);
+
 protected:
     virtual unsigned int getNextSector(unsigned int index);
 
