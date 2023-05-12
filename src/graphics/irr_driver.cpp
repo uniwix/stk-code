@@ -90,6 +90,8 @@
 
 #include <irrlicht.h>
 
+#include "frame_buffer.hpp"
+
 #if !defined(SERVER_ONLY) && defined(ANDROID)
 #include <SDL.h>
 #if SDL_VERSION_ATLEAST(2, 0, 9)
@@ -107,6 +109,10 @@
 #include <chrono>
 #include <openglrecorder.h>
 #endif
+#include <glad/gl.h>
+
+#include "frame_buffer.hpp"
+#include "../../lib/irrlicht/source/Irrlicht/glext.h"
 
 /* Build-time check that the Irrlicht we're building against works for us.
  * Should help prevent distros building against an incompatible library.

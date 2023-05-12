@@ -237,6 +237,9 @@ std::pair<RaceManager::MinorRaceModeType, RaceManager::MajorRaceModeType>
         case 8:
             return { RaceManager::MINOR_MODE_CAPTURE_THE_FLAG,
                 RaceManager::MAJOR_MODE_SINGLE };
+        case 9:
+            return { RaceManager::MINOR_MODE_NAI,
+                RaceManager::MAJOR_MODE_SINGLE };
         default:
             break;
     }

@@ -535,6 +535,7 @@ void PowerupManager::computeWeightsForRace(int num_karts)
     case RaceManager::MINOR_MODE_OVERWORLD:
     case RaceManager::MINOR_MODE_CUTSCENE:
     case RaceManager::MINOR_MODE_SOCCER:           class_name="soccer";   break;
+    case RaceManager::MINOR_MODE_NAI:              class_name="race";   break;
     default:
         Log::fatal("PowerupManager", "Invalid minor mode %d - aborting.",
                     RaceManager::get()->getMinorMode());

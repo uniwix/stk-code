@@ -636,6 +636,7 @@ void ServerLobby::updateTracksForMode()
         ServerConfig::getLocalGameMode(m_game_mode.load()).first;
     switch (m)
     {
+		case RaceManager::MINOR_MODE_NAI:
         case RaceManager::MINOR_MODE_NORMAL_RACE:
         case RaceManager::MINOR_MODE_TIME_TRIAL:
         case RaceManager::MINOR_MODE_FOLLOW_LEADER:
@@ -2612,6 +2613,7 @@ void ServerLobby::startSelection(const Event *event)
     m_default_vote->m_track_name = *it;
     switch (RaceManager::get()->getMinorMode())
     {
+        case RaceManager::MINOR_MODE_NAI:
         case RaceManager::MINOR_MODE_NORMAL_RACE:
         case RaceManager::MINOR_MODE_TIME_TRIAL:
         case RaceManager::MINOR_MODE_FOLLOW_LEADER:

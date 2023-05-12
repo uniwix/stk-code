@@ -52,6 +52,7 @@ static const std::string IDENT_GHOST    ("GHOST"           );
 static const std::string IDENT_OVERWORLD("OVERWORLD"       );
 static const std::string IDENT_CUTSCENE ("CUTSCENE"        );
 static const std::string IDENT_LAP_TRIAL("LAP_TRIAL"       );
+static const std::string IDENT_NAI      ("NAI"             );
 
 /**
  * The race manager has two functions:
@@ -113,6 +114,7 @@ public:
         MINOR_MODE_NORMAL_RACE      = LINEAR_RACE(0, true),
         MINOR_MODE_TIME_TRIAL       = LINEAR_RACE(1, true),
         MINOR_MODE_FOLLOW_LEADER    = LINEAR_RACE(2, false),
+        MINOR_MODE_NAI              = LINEAR_RACE(4, true),
 
         MINOR_MODE_3_STRIKES        = BATTLE_ARENA(0),
         MINOR_MODE_FREE_FOR_ALL     = BATTLE_ARENA(1),
@@ -153,6 +155,7 @@ public:
             case MINOR_MODE_CAPTURE_THE_FLAG: return IDENT_CTF;
             case MINOR_MODE_EASTER_EGG:       return IDENT_EASTER;
             case MINOR_MODE_SOCCER:           return IDENT_SOCCER;
+            case MINOR_MODE_NAI:              return IDENT_NAI;
             default: assert(false);
                      return IDENT_STD;  // stop compiler warning
         }
@@ -175,6 +178,7 @@ public:
             case MINOR_MODE_CAPTURE_THE_FLAG: return "/gui/icons/mode_weapons.png";
             case MINOR_MODE_EASTER_EGG:     return "/gui/icons/mode_easter.png";
             case MINOR_MODE_SOCCER:         return "/gui/icons/mode_soccer.png";
+            case MINOR_MODE_NAI:            return "/gui/icons/mode_ftl.png"; // TODO: NAI: Add AI trainning icon
             default: assert(false); return NULL;
         }
     }   // getIconOf
@@ -196,6 +200,7 @@ public:
             case MINOR_MODE_CAPTURE_THE_FLAG: return false;
             case MINOR_MODE_EASTER_EGG:     return false;
             case MINOR_MODE_SOCCER:         return true;
+            case MINOR_MODE_NAI:            return true;
             default: assert(false);         return false;
         }
     }   // hasAI
@@ -217,6 +222,7 @@ public:
         else if (name==IDENT_CTF)     return MINOR_MODE_CAPTURE_THE_FLAG;
         else if (name==IDENT_EASTER ) return MINOR_MODE_EASTER_EGG;
         else if (name==IDENT_SOCCER)  return MINOR_MODE_SOCCER;
+        else if (name==IDENT_NAI)     return MINOR_MODE_NAI;
 
         assert(0);
         return MINOR_MODE_NONE;
@@ -567,6 +573,7 @@ public:
             case MINOR_MODE_CAPTURE_THE_FLAG: return "ctf";
             case MINOR_MODE_EASTER_EGG:     return "egg-hunt";
             case MINOR_MODE_SOCCER:         return "soccer";
+            case MINOR_MODE_NAI:         return "ai-training";
             default: assert(false);         return "";
         }
     }
@@ -767,6 +774,8 @@ public:
     bool isTimeTrialMode() const { return m_minor_mode == MINOR_MODE_TIME_TRIAL; }
     // ----------------------------------------------------------------------------------------
     bool isLapTrialMode() const  { return m_minor_mode == MINOR_MODE_LAP_TRIAL; }
+    // ----------------------------------------------------------------------------------------
+    bool isNAIMode() const  { return m_minor_mode == MINOR_MODE_NAI; }
     // ----------------------------------------------------------------------------------------
      /** \brief Returns the number of second's decimals to display */
     int currentModeTimePrecision() const

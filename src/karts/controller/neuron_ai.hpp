@@ -19,8 +19,8 @@
 //  along with this program; if not, write to the Free Software
 //  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-#ifndef HEADER_SKIDDING_AI_HPP
-#define HEADER_SKIDDING_AI_HPP
+#ifndef HEADER_NEURON_AI_HPP
+#define HEADER_NEURON_AI_HPP
 
 // Some debugging features for the AI. For example you can visualise the
 // point the AI is aiming at, or visualise the curve the AI is predicting.
@@ -31,20 +31,17 @@
 
 #ifdef DEBUG
    // Enable AI graphical debugging
-#  undef AI_DEBUG
+#define AI_DEBUG
    // Shows left and right lines when using new findNonCrashing function
-#  undef AI_DEBUG_NEW_FIND_NON_CRASHING
+#define AI_DEBUG_NEW_FIND_NON_CRASHING
    // Show the predicted turn circles
-#  undef AI_DEBUG_CIRCLES
+#define AI_DEBUG_CIRCLES
    // Show the heading of the kart
-#  undef AI_DEBUG_KART_HEADING
+#define AI_DEBUG_KART_HEADING
    // Shows line from kart to its aim point
-#  undef AI_DEBUG_KART_AIM
+#define AI_DEBUG_KART_AIM
 #endif
 
-#ifdef AI_DEBUG
-#include "graphics/show_curve.hpp"
-#endif
 
 #include "karts/controller/ai_base_lap_controller.hpp"
 #include "race/race_manager.hpp"
@@ -52,6 +49,9 @@
 #include "utils/random_generator.hpp"
 
 #include <line3d.h>
+
+#include "net_neurons.hpp"
+#include "graphics/show_curve.hpp"
 
 class ItemManager;
 class ItemState;
@@ -67,56 +67,10 @@ namespace irr
 }
 
 /**
-\brief This is the actual racing AI.
-
-The main entry point, called once per frame for each AI, is update().
-After handling some standard cases (race start, AI being rescued)
-the AI does the following steps:
-- compute nearest karts (one ahead and one behind)
-- check if the kart is about to crash with another kart or the
-  track. This is done by simply testing a certain number of timesteps
-  ahead and estimating the future position of any kart by using
-  current_position  + velocity * time
-  (so turns are not taken into account). It also checks if the kart
-  would be outside the quad graph, which indicates a 'collision with
-  track' (though technically this only means the kart would be off track).
-  This information is stored in the m_crashes data structure.
-- Determine track direction (straight, left, or right), which the
-  function determineTrackDirection stores in m_current_track_direction
-- If the kart has a bomb attached, it will try to hit the kart ahead,
-  using nitro if necessary. The kart will aim at the target kart,
-  nothing els is done (idea: if the kart has a plunger, fire it).
-- Otherwise, the AI will:
-  - set acceleration (handleAcceleration)
-  - decide where to steer to (handleSteering()): it will first check if it
-    is outside of the track, and if so, steer towards the center of the
-    next quad. If it was detected that the AI is going to hit another
-    kart, it will try to avoid this. Otherwise it will aim at the center
-    of the quad furthest away so that a straight line from the current
-    position to this center is on track (see findNonCrashingPoint).
-    There are actually three different implementations of this, but the
-    (somewhat buggy) default one results in reality with the best AI
-    behaviour.
-    The function handleSteering() then calls setSteering() to set the
-    actually steering amount. The latter function also decides if skidding
-    should be done or not (by calling canSkid()).
-  - decide if to try to collect or avoid items (handeItems).
-    It considers all items on quads between the current quad of the kart
-    and the quad the AI is aiming at (see handleSteering). If it finds
-    an item to collect, it pre-selects this items, which means it will
-    not select another item for collection until this pre-selected item
-    is clearly uncollectable (gone or too far out of the way). This avoids
-    problems that the AI is between two items it can collects, and keeps
-    switching between both items, at the end missing both.
-  - detects if the AI is stuck and needs rescue (handleRescue)
-  - decides if it needs to brake (handlebraking)
-  - decides if nitro or zipper should be used
-- Finally, it checks if it has a zipper but selected to use nitro, and
-  under certain circumstances will use zipper instead of nitro.
-
+\brief AI class for neuron networks
 \ingroup controller
 */
-class SkiddingAI : public AIBaseLapController
+class NeuronAI : public AIBaseLapController
 {
 private:
 
@@ -252,6 +206,10 @@ private:
     irr::scene::ISceneNode *m_item_sphere;
 #endif
 
+    /**
+     * \brief The neuron network associated with the AI
+     */
+    NetNeurons::Network m_neuron_network;
 
     /*Functions called directly from update(). They all represent an action
      *that can be done, and end up setting their respective m_controls
@@ -306,8 +264,8 @@ protected:
     virtual unsigned int getNextSector(unsigned int index);
 
 public:
-                 SkiddingAI(AbstractKart *kart);
-                ~SkiddingAI();
+                 NeuronAI(AbstractKart *kart);
+                ~NeuronAI();
     virtual void update      (int ticks);
     virtual void reset       ();
     virtual const irr::core::stringw& getNamePostfix() const;

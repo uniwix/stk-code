@@ -83,6 +83,12 @@ public:
                 m_prev_value = soccer_goal ? 1 : 0;
                 break;
             }
+        	case RaceManager::MINOR_MODE_NAI:
+            {
+                m_prev_mode = 6;
+                m_prev_value = 0;
+                break;
+            }
             default:
             {
                 m_prev_mode = 0;

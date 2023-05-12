@@ -48,6 +48,7 @@
 #include "modes/three_strikes_battle.hpp"
 #include "modes/soccer_world.hpp"
 #include "modes/lap_trial.hpp"
+#include "modes/training_race.hpp"
 #include "network/protocol_manager.hpp"
 #include "network/network_config.hpp"
 #include "network/network_string.hpp"
@@ -655,6 +656,8 @@ void RaceManager::startNextRace()
     else if(m_minor_mode==MINOR_MODE_NORMAL_RACE ||
             m_minor_mode==MINOR_MODE_TIME_TRIAL)
         World::setWorld(new StandardRace());
+    else if(m_minor_mode==MINOR_MODE_NAI)
+        World::setWorld(new TrainingRace());
     else if(m_minor_mode==MINOR_MODE_LAP_TRIAL)
     {
         World::setWorld(new LapTrial());
@@ -1296,6 +1299,8 @@ const core::stringw RaceManager::getNameOf(const MinorRaceModeType mode)
         case MINOR_MODE_EASTER_EGG:     return _("Egg Hunt");
         //I18N: Game mode
         case MINOR_MODE_SOCCER:         return _("Soccer");
+        //I18N: Game mode
+        case MINOR_MODE_NAI:         return _("Training");
         default: return L"";
     }
 }   // getNameOf
