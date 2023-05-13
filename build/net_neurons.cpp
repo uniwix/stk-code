@@ -64,6 +64,11 @@ std::vector<double> NetNeurons::Network::compute_one_layer(const std::vector<dou
 		}
 	}
 
+	for (auto& output : outputs)
+	{
+		output = tanh(output);
+	}
+
 	return outputs;
 }
 
