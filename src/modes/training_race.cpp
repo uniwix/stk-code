@@ -69,14 +69,6 @@ bool TrainingRace::haveBonusBoxes()
 }   // haveBonusBoxes
 
 //-----------------------------------------------------------------------------
-/** Returns an identifier for this race.
- */
-const std::string& TrainingRace::getIdent() const
-{
-    return IDENT_NAI;
-}   // getIdent
-
-//-----------------------------------------------------------------------------
 /** Ends the race early and places still active player karts at the back.
  *  The race immediately goes to the result stage, estimating the time for the
  *  karts still in the race. Still active player karts get a penalty in time

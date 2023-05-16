@@ -53,6 +53,13 @@
 #  include "irrlicht.h"
    using namespace irr;
 #endif
+#define CURVE_RAYCAST_PI_2L 6
+#define CURVE_RAYCAST_PI_3L 7
+#define CURVE_RAYCAST_PI_6L 8
+#define CURVE_RAYCAST_PI_2R 9
+#define CURVE_RAYCAST_PI_3R 10
+#define CURVE_RAYCAST_PI_6R 11
+#define CURVE_RAYCAST_FRONT 12
 
 #include <cmath>
 #include <cstdlib>
@@ -107,7 +114,7 @@ NeuronAI::NeuronAI(AbstractKart *kart)
 #define CURVE_RIGHT      3
 #define CURVE_AIM        4
 #define CURVE_QG         5
-#define NUM_CURVES (CURVE_QG+1)
+#define NUM_CURVES (CURVE_RAYCAST_FRONT+1)
 
     m_curve   = new ShowCurve*[NUM_CURVES];
     for(unsigned int i=0; i<NUM_CURVES; i++)
@@ -134,6 +141,22 @@ NeuronAI::NeuronAI(AbstractKart *kart)
     c1 = irr::video::SColor(128,   0,   0, 128);
 
     m_curve[CURVE_AIM]       = new ShowCurve(0.5f, 0.5f, c1);
+#endif
+#ifdef AI_DEBUG_RAYCAST
+	m_curve[CURVE_RAYCAST_PI_2L] = new ShowCurve(0.1f, 0.1f,
+													video::SColor(50, 128,   0,   0));
+	m_curve[CURVE_RAYCAST_PI_3L] = new ShowCurve(0.1f, 0.1f,
+        											video::SColor(50, 128,   0,   0));
+	m_curve[CURVE_RAYCAST_PI_6L] = new ShowCurve(0.1f, 0.1f,
+        											video::SColor(50, 128,   0,   0));
+	m_curve[CURVE_RAYCAST_PI_2R] = new ShowCurve(0.1f, 0.1f,
+        											video::SColor(50,   0, 128,   0));
+	m_curve[CURVE_RAYCAST_PI_3R] = new ShowCurve(0.1f, 0.1f,
+        											video::SColor(50,   0, 128,   0));
+	m_curve[CURVE_RAYCAST_PI_6R] = new ShowCurve(0.1f, 0.1f,
+        											video::SColor(50,   0, 128,   0));
+	m_curve[CURVE_RAYCAST_FRONT] = new ShowCurve(0.1f, 0.1f,
+        											video::SColor(50,   0,   0, 128));
 #endif
 #endif
 
@@ -306,6 +329,7 @@ void NeuronAI::update(int ticks)
     return;
 #endif
 
+    /*
     // If the kart needs to be rescued, do it now (and nothing else)
     if(isStuck() && !m_kart->getKartAnimation())
     {
@@ -316,7 +340,7 @@ void NeuronAI::update(int ticks)
             RescueAnimation::create(m_kart);
         AIBaseLapController::update(ticks);
         return;
-    }
+    }*/
 
     if( m_world->isStartPhase() )
     {
@@ -329,16 +353,16 @@ void NeuronAI::update(int ticks)
     //computeNearestKarts();
 
     const std::vector<double> inputs({
-        ( (double)distanceToSide(M_PI / 2.,  m_kart->getXYZ())
-        - (double)distanceToSide(-M_PI / 2., m_kart->getXYZ())) / 100.,
+        ( (double)distanceToSide(M_PI / 2.,  m_kart->getXYZ(), CURVE_RAYCAST_PI_2L)
+        - (double)distanceToSide(-M_PI / 2., m_kart->getXYZ(), CURVE_RAYCAST_PI_2R)) / 100.,
 
-        ( (double)distanceToSide(M_PI / 3.,  m_kart->getXYZ())
-        - (double)distanceToSide(-M_PI / 3., m_kart->getXYZ())) / 100.,
+        ( (double)distanceToSide(M_PI / 3.,  m_kart->getXYZ(), CURVE_RAYCAST_PI_3L)
+        - (double)distanceToSide(-M_PI / 3., m_kart->getXYZ(), CURVE_RAYCAST_PI_3R)) / 100.,
 
-        ( (double)distanceToSide(M_PI / 6.,  m_kart->getXYZ())
-        - (double)distanceToSide(-M_PI / 6., m_kart->getXYZ())) / 100.,
+        ( (double)distanceToSide(M_PI / 6.,  m_kart->getXYZ(), CURVE_RAYCAST_PI_6L)
+        - (double)distanceToSide(-M_PI / 6., m_kart->getXYZ(), CURVE_RAYCAST_PI_6R)) / 100.,
 
-          (double)distanceToSide(0.,         m_kart->getXYZ())  / 100.,
+          (double)distanceToSide(0.,         m_kart->getXYZ(), CURVE_RAYCAST_FRONT)  / 100.,
 
         (double)m_kart->getSpeed(),
 
@@ -2922,11 +2946,11 @@ void NeuronAI::handleCurve()
  * \param pos position of the kart
  * \return the distance to the road side
  */
-float NeuronAI::distanceToSide(float angle, const Vec3& pos)
+float NeuronAI::distanceToSide(float angle, const Vec3& pos, int curve)
 {
     int steps = 1000;
     int d_node = m_track_node;
-    Vec3 dir_vec = m_kart->getVelocity().rotate(m_kart->getNormal(), angle).normalized();
+    Vec3 dir_vec = Vec3(0.0f, 0.f, 1.f).rotate(Vec3(0.f, 1.f, 0.f), angle).rotate(m_kart->getRotation().getAxis(), m_kart->getRotation().getAngle());
     for (int d = 1; steps > d; ++d)
     {
         Vec3 step_coord = pos + dir_vec * m_kart_length * float(d);
@@ -2937,11 +2961,30 @@ float NeuronAI::distanceToSide(float angle, const Vec3& pos)
 
         if (d_node == Graph::UNKNOWN_SECTOR)
         {
+#ifdef AI_DEBUG_RAYCAST
+            if (curve >= 0)
+                drawRayCast(curve, step_coord);
+#endif
             return float(d) * m_kart_length;
         }
     }
+#ifdef AI_DEBUG_RAYCAST
+    Vec3 step_coord = pos + steps * m_kart_length * dir_vec;
+        if (curve >= 0)
+			drawRayCast(curve, step_coord);
+#endif
     return float(steps) * m_kart_length;
 }   // distanceToSide
+
+#ifdef AI_DEBUG_RAYCAST
+void NeuronAI::drawRayCast(int curve, Vec3 &pos)
+{
+    m_curve[curve]->clear();
+    m_curve[curve]->addPoint(m_kart->getXYZ());
+    m_curve[curve]->addPoint(pos);
+}
+
+#endif
 
 // ----------------------------------------------------------------------------
 /** Determines if the kart should skid. The base implementation enables

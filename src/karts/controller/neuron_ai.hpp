@@ -33,13 +33,15 @@
    // Enable AI graphical debugging
 #define AI_DEBUG
    // Shows left and right lines when using new findNonCrashing function
-#define AI_DEBUG_NEW_FIND_NON_CRASHING
+# undef AI_DEBUG_NEW_FIND_NON_CRASHING
    // Show the predicted turn circles
-#define AI_DEBUG_CIRCLES
+# undef AI_DEBUG_CIRCLES
    // Show the heading of the kart
-#define AI_DEBUG_KART_HEADING
+# undef AI_DEBUG_KART_HEADING
    // Shows line from kart to its aim point
-#define AI_DEBUG_KART_AIM
+# undef AI_DEBUG_KART_AIM
+   // Show ray cast
+#define AI_DEBUG_RAYCAST
 #endif
 
 
@@ -50,7 +52,7 @@
 
 #include <line3d.h>
 
-#include "net_neurons.hpp"
+#include <Network.hpp>
 #include "graphics/show_curve.hpp"
 
 class ItemManager;
@@ -258,7 +260,10 @@ private:
 
     /*Functions created to implement neural network AI
      */
-    float distanceToSide(float angle, const Vec3& pos);
+    float distanceToSide(float angle, const Vec3& pos, int curve=-1);
+#ifdef AI_DEBUG_RAYCAST
+    void drawRayCast(int curve, Vec3& pos);
+#endif
 
 protected:
     virtual unsigned int getNextSector(unsigned int index);
