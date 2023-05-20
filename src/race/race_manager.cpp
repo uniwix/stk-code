@@ -139,6 +139,7 @@ RaceManager::RaceManager()
     m_skipped_tracks_in_gp = 0;
     m_gp_time_target = 0.0f;
     m_gp_total_laps = 0;
+    m_network_file = "";
     setMaxGoal(0);
     setTimeTarget(0.0f);
     setReverseTrack(false);

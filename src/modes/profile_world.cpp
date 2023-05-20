@@ -18,6 +18,8 @@
 
 #include "modes/profile_world.hpp"
 
+#include <fstream>
+
 #include "main_loop.hpp"
 #include "graphics/camera.hpp"
 #include "graphics/irr_driver.hpp"
@@ -176,6 +178,13 @@ void ProfileWorld::update(int ticks)
  */
 void ProfileWorld::enterRaceOverState()
 {
+    // Get the score of the kart and write it to a file
+    auto& kart = m_karts[0];
+	float score = kart->getController()->getScore();
+	std::ofstream file(R"(C:\Users\jbeno\source\repos\uniwix\genetic\GeneticC\)" + RaceManager::get()->getNeuronNetworkFile() + "score.txt");
+	file << score;
+	file.close();
+
     // If in timing mode, the number of laps is way too high (which avoids
     // aborting too early). So in this case determine the maximum number
     // of laps and set this +1 as the number of laps to get more meaningful

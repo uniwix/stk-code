@@ -167,6 +167,8 @@ private:
     enum {SKID_PROBAB_NOT_YET, SKID_PROBAB_NO_SKID, SKID_PROBAB_SKID}
           m_skid_probability_state;
 
+    double m_score;
+
     /** This is used by computeSkill to know what skill is used */
     enum SkillType {ITEM_SKILL, NITRO_SKILL};
 
@@ -261,6 +263,7 @@ private:
     /*Functions created to implement neural network AI
      */
     float distanceToSide(float angle, const Vec3& pos, int curve=-1);
+    float getDeltaScore(float dt, double dist_sum) const;
 #ifdef AI_DEBUG_RAYCAST
     void drawRayCast(int curve, Vec3& pos);
 #endif
@@ -274,6 +277,7 @@ public:
     virtual void update      (int ticks);
     virtual void reset       ();
     virtual const irr::core::stringw& getNamePostfix() const;
+    float getScore() const { return m_score; }
 };
 
 #endif

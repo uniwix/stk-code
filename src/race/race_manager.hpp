@@ -356,6 +356,7 @@ private:
     float                            m_gp_time_target;
     /** Total laps from every track, used in Lap Trial mode */
     int                              m_gp_total_laps;
+    std::string                      m_network_file;
     void startNextRace();    // start a next race
 
     friend bool operator< (const KartStatus& left, const KartStatus& right)
@@ -447,6 +448,10 @@ public:
 
     // ----------------------------------------------------------------------------------------
     bool hasTimeTarget() const { return m_time_target > 0.0f; }
+    // ----------------------------------------------------------------------------------------
+    void setNeuronNetworkFile(const std::string& string) { m_network_file = string; }
+    // ----------------------------------------------------------------------------------------
+    std::string getNeuronNetworkFile() const { return m_network_file; }
     // ----------------------------------------------------------------------------------------
     void setMaxGoal(int max_goal)
     {

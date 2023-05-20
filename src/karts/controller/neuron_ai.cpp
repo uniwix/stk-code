@@ -24,6 +24,8 @@
 #ifdef AI_DEBUG
 #  include "graphics/irr_driver.hpp"
 #endif
+#include <fstream>
+
 #include "graphics/show_curve.hpp"
 #include "graphics/slip_stream.hpp"
 #include "items/attachment.hpp"
@@ -48,6 +50,8 @@
 #include "utils/vs.hpp"
 
 #include <line2d.h>
+
+#include "tracks/track_sector.hpp"
 
 #ifdef AI_DEBUG
 #  include "irrlicht.h"
@@ -75,6 +79,7 @@ NeuronAI::NeuronAI(AbstractKart *kart)
     // Determine if this AI has superpowers, which happens e.g.
     // for the final race challenge against nolok.
     m_superpower = RaceManager::get()->getAISuperPower();
+    m_score = 0.;
 
     m_point_selection_algorithm = PSA_DEFAULT;
     setControllerName("Skidding");
@@ -160,7 +165,15 @@ NeuronAI::NeuronAI(AbstractKart *kart)
 #endif
 #endif
 
-    m_neuron_network = NetNeurons::Network(std::vector<int>({ 6, 6, 3 }));
+    if (RaceManager::get()->getNeuronNetworkFile() != "")
+    {
+        std::ifstream file(R"(C:\Users\jbeno\source\repos\uniwix\genetic\GeneticC\)" + RaceManager::get()->getNeuronNetworkFile() + "vec.txt");
+	    m_neuron_network = NetNeurons::Network(file);
+    }
+    else
+    {
+        m_neuron_network = NetNeurons::Network(std::vector<int>({ 6, 6, 3 }));
+    }
 }   // NeuronAI
 
 //-----------------------------------------------------------------------------
@@ -203,6 +216,7 @@ void NeuronAI::reset()
     m_skid_probability_state     = SKID_PROBAB_NOT_YET;
     m_last_item_random           = NULL;
     m_burster                    = false;
+    m_score                      = 0;
 
     AIBaseLapController::reset();
     m_track_node               = Graph::UNKNOWN_SECTOR;
@@ -248,7 +262,7 @@ unsigned int NeuronAI::getNextSector(unsigned int index)
  */
 void NeuronAI::update(int ticks)
 {
-    float dt = stk_config->ticks2Time(ticks);
+	float dt = stk_config->ticks2Time(ticks);
 
     // Clear stored items if they were deleted (for example a switched nitro)
     if (m_item_to_collect &&
@@ -352,17 +366,19 @@ void NeuronAI::update(int ticks)
     // Get information that is needed by more than 1 of the handling funcs
     //computeNearestKarts();
 
+	const double d1 = distanceToSide( M_PI / 2., m_kart->getXYZ(), CURVE_RAYCAST_PI_2L);
+	const double d2 = distanceToSide( M_PI / 3., m_kart->getXYZ(), CURVE_RAYCAST_PI_3L);
+	const double d3 = distanceToSide( M_PI / 6., m_kart->getXYZ(), CURVE_RAYCAST_PI_6L);
+	const double d4 = distanceToSide(        0., m_kart->getXYZ(), CURVE_RAYCAST_FRONT);
+	const double d5 = distanceToSide(-M_PI / 6., m_kart->getXYZ(), CURVE_RAYCAST_PI_6R);
+	const double d6 = distanceToSide(-M_PI / 3., m_kart->getXYZ(), CURVE_RAYCAST_PI_3R);
+	const double d7 = distanceToSide(-M_PI / 2., m_kart->getXYZ(), CURVE_RAYCAST_PI_2R);
+
     const std::vector<double> inputs({
-        ( (double)distanceToSide(M_PI / 2.,  m_kart->getXYZ(), CURVE_RAYCAST_PI_2L)
-        - (double)distanceToSide(-M_PI / 2., m_kart->getXYZ(), CURVE_RAYCAST_PI_2R)) / 100.,
-
-        ( (double)distanceToSide(M_PI / 3.,  m_kart->getXYZ(), CURVE_RAYCAST_PI_3L)
-        - (double)distanceToSide(-M_PI / 3., m_kart->getXYZ(), CURVE_RAYCAST_PI_3R)) / 100.,
-
-        ( (double)distanceToSide(M_PI / 6.,  m_kart->getXYZ(), CURVE_RAYCAST_PI_6L)
-        - (double)distanceToSide(-M_PI / 6., m_kart->getXYZ(), CURVE_RAYCAST_PI_6R)) / 100.,
-
-          (double)distanceToSide(0.,         m_kart->getXYZ(), CURVE_RAYCAST_FRONT)  / 100.,
+        (d1 - d7)/100.,
+        (d2 - d6)/100.,
+        (d3 - d5)/100.,
+    	d4/100.,
 
         (double)m_kart->getSpeed(),
 
@@ -376,6 +392,13 @@ void NeuronAI::update(int ticks)
     m_controls->setAccel(acc);
     m_controls->setBrake(brake);
 
+    // Update the score
+    m_score += getDeltaScore(dt, d1+d2+d3+d4+d5+d6+d7);
+    
+    // Show score
+	const irr::core::stringw str_score = std::to_string((int)m_score).c_str();
+    m_kart->setOnScreenText(str_score);
+    
 
     /*if (!m_enabled_network_ai)
     {
@@ -437,7 +460,7 @@ void NeuronAI::handleSteering(float dt)
             if((m_kart_ahead->getSpeed() < m_kart->getSpeed()) &&
                 !m_kart_ahead->isGhostKart())
             {
-                float time_till_hit = m_distance_ahead
+	            float time_till_hit = m_distance_ahead
                                     / (m_kart->getSpeed()-m_kart_ahead->getSpeed());
                 target += m_kart_ahead->getVelocity()*time_till_hit;
             }
@@ -550,6 +573,29 @@ void NeuronAI::handleSteering(float dt)
     setSteering(steer_angle, dt);
 }   // handleSteering
 
+/**
+ * \brief Get the score gain during the time dt.
+ * \param dt The time during which the score gain is computed.
+ * \return  The score gain
+ */
+float NeuronAI::getDeltaScore(float dt, double dist_sum) const
+{
+    const int sector = m_world->getTrackSector(m_kart->getWorldKartId())->getCurrentGraphNode();
+
+    if (DriveGraph::get()->getNumberOfSuccessors(sector) > 1)
+        return 0;
+
+    const DriveNode* node = DriveGraph::get()->getNode(sector);
+    const Vec3 center_line = node->getUpperCenter() - node->getLowerCenter();
+    float dscore = m_kart->getVelocity().dot(center_line.normalized()) * dt;
+    
+    if (dist_sum < 1.)
+    {
+	    dscore -= m_kart->getVelocity().normalized().dot(m_kart->getVelocity()) * dt;
+    }
+    return dscore;
+}
+
 //-----------------------------------------------------------------------------
 /** Decides if the currently selected aim at point (as determined by
  *  handleSteering) should be changed in order to collect/avoid an item.
@@ -624,7 +670,7 @@ void NeuronAI::handleItemCollectionAndAvoidance(Vec3 *aim_point,
     const float max_item_lookahead_distance = 30.f;
     while(distance < max_item_lookahead_distance)
     {
-        int n_index= DriveGraph::get()->getNode(node)->getIndex();
+	    int n_index= DriveGraph::get()->getNode(node)->getIndex();
         const std::vector<ItemState*> &items_ahead =
                                   m_item_manager->getItemsInQuads(n_index);
         for(unsigned int i=0; i<items_ahead.size(); i++)
@@ -642,7 +688,7 @@ void NeuronAI::handleItemCollectionAndAvoidance(Vec3 *aim_point,
     m_avoid_item_close = items_to_avoid.size()>0;
 
     core::line3df line_to_target_3d((*aim_point).toIrrVector(),
-                                     m_kart->getXYZ().toIrrVector());
+                                          m_kart->getXYZ().toIrrVector());
 
     // 2) If the kart is aiming for an item, but (suddenly) detects
     //    some close-by items to avoid (e.g. behind the item, which was too
@@ -717,7 +763,7 @@ void NeuronAI::handleItemCollectionAndAvoidance(Vec3 *aim_point,
     {
         if(items_to_collect[0] != m_last_item_random)
         {
-            int p = (int)(100.0f*m_ai_properties->
+	        int p = (int)(100.0f*m_ai_properties->
                           getItemCollectProbability(m_distance_to_player));
             m_really_collect_item = m_random_collect_item.get(100)<p;
             m_last_item_random = items_to_collect[0];
@@ -811,8 +857,8 @@ void NeuronAI::handleItemCollectionAndAvoidance(Vec3 *aim_point,
 bool NeuronAI::hitBadItemWhenAimAt(const ItemState *item,
                           const std::vector<const ItemState *> &items_to_avoid)
 {
-    core::line3df to_item(m_kart->getXYZ().toIrrVector(),
-                          item->getXYZ().toIrrVector());
+	core::line3df to_item(m_kart->getXYZ().toIrrVector(),
+	                            item->getXYZ().toIrrVector());
     for(unsigned int i=0; i<items_to_avoid.size(); i++)
     {
         if(items_to_avoid[i]->hitLine(to_item, m_kart))
@@ -880,7 +926,7 @@ bool NeuronAI::steerToAvoid(const std::vector<const ItemState *> &items_to_avoid
 
     for(unsigned int i=1; i<items_to_avoid.size(); i++)
     {
-        float dist = items_to_avoid[i]->getDistanceFromCenter();
+	    float dist = items_to_avoid[i]->getDistanceFromCenter();
         if (dist<left_most)
         {
             left_most       = dist;
@@ -906,8 +952,8 @@ bool NeuronAI::steerToAvoid(const std::vector<const ItemState *> &items_to_avoid
         Vec3(line_to_target.getMiddle()) + normal * -10000, &hit, &m,
         &hit_nor);
     Vec3 p1 = line_to_target.start,
-         p2 = line_to_target.getMiddle() + hit_nor.toIrrVector(),
-         p3 = line_to_target.end;
+               p2 = line_to_target.getMiddle() + hit_nor.toIrrVector(),
+               p3 = line_to_target.end;
 
     int item_index = -1;
     bool is_left    = false;
@@ -1083,8 +1129,8 @@ void NeuronAI::evaluateItems(const ItemState *item, Vec3 kart_aim_direction,
                            kp->getEngineMaxSpeed() ) ||
                           m_kart->getSkidding()->getSkidBonusReady();
         float max_angle = high_speed
-                        ? m_ai_properties->m_max_item_angle_high_speed
-                        : m_ai_properties->m_max_item_angle;
+	                                ? m_ai_properties->m_max_item_angle_high_speed
+	                                : m_ai_properties->m_max_item_angle;
 
         if(fabsf(diff) > max_angle)
             return;
@@ -1106,7 +1152,7 @@ void NeuronAI::evaluateItems(const ItemState *item, Vec3 kart_aim_direction,
     int i;
     for(i=(int)list->size()-2; i>=0; i--)
     {
-        float d = ((*list)[i]->getXYZ() - m_kart->getXYZ()).length2();
+	    float d = ((*list)[i]->getXYZ() - m_kart->getXYZ()).length2();
         if(d<=new_distance)
         {
             break;
@@ -1214,7 +1260,7 @@ void NeuronAI::handleItems(const float dt, const Vec3 *aim_point, int last_node,
     const float max_item_lookahead_distance = 20.0f;
     while(distance < max_item_lookahead_distance)
     {
-        int n_index= DriveGraph::get()->getNode(node)->getIndex();
+	    int n_index= DriveGraph::get()->getNode(node)->getIndex();
         const std::vector<ItemState *> &items_ahead =
             m_item_manager->getItemsInQuads(n_index);
         for(unsigned int i=0; i<items_ahead.size(); i++)
@@ -1281,7 +1327,7 @@ void NeuronAI::handleItems(const float dt, const Vec3 *aim_point, int last_node,
                                    m_distance_behind < m_distance_ahead) ||
                                   !m_kart_ahead;
             float distance      = fire_backwards ? m_distance_behind
-                                                 : m_distance_ahead;
+	                                        : m_distance_ahead;
             m_controls->setFire(distance < 30.0f                 ||
                                  m_time_since_last_shot > 10.0f    );
             if(m_controls->getFire())
@@ -1350,7 +1396,7 @@ void NeuronAI::handleBubblegum(int item_skill,
                                  const std::vector<const ItemState *> &items_to_collect,
                                  const std::vector<const ItemState *> &items_to_avoid)
 {
-    float shield_radius = m_ai_properties->m_shield_incoming_radius;
+	float shield_radius = m_ai_properties->m_shield_incoming_radius;
 
     int projectile_types[4]; //[3] basket, [2] cakes, [1] plunger, [0] bowling
     projectile_types[0] = ProjectileManager::get()->getNearbyProjectileCount(m_kart, shield_radius, PowerupManager::POWERUP_BOWLING);
@@ -1361,7 +1407,7 @@ void NeuronAI::handleBubblegum(int item_skill,
     bool projectile_is_close = false;
     projectile_is_close = ProjectileManager::get()->projectileIsClose(m_kart, shield_radius);
 
-    Attachment::AttachmentType type = m_kart->getAttachment()->getType();
+	Attachment::AttachmentType type = m_kart->getAttachment()->getType();
     
     if((item_skill == 2) && (m_time_since_last_shot > 2.0f))
     {
@@ -1447,7 +1493,7 @@ void NeuronAI::handleBubblegum(int item_skill,
     {
        if( !m_kart->isShielded() && items_to_avoid.size()>0)
        {
-          float d = (items_to_avoid[0]->getXYZ() - m_kart->getXYZ()).length2();
+	       float d = (items_to_avoid[0]->getXYZ() - m_kart->getXYZ()).length2();
           
           if ((item_skill == 4 && d < 1.5f) || (item_skill == 5 && d < 0.7f))
           {
@@ -1463,7 +1509,7 @@ void NeuronAI::handleBubblegum(int item_skill,
     {
        if( !m_kart->isShielded() && items_to_collect.size()>0)
        {
-          float d = (items_to_collect[0]->getXYZ() - m_kart->getXYZ()).length2();
+	       float d = (items_to_collect[0]->getXYZ() - m_kart->getXYZ()).length2();
           
           if ((items_to_collect[0]->getType() == Item::ITEM_BONUS_BOX) && (d < 0.7f))
           {
@@ -1483,7 +1529,7 @@ void NeuronAI::handleBubblegum(int item_skill,
     bool straight_behind = false;
     if (m_kart_behind)
     {
-        Vec3 behind_lc = m_kart->getTrans().inverse()
+	    Vec3 behind_lc = m_kart->getTrans().inverse()
             (m_kart_behind->getXYZ());
         const float abs_angle =
             atan2f(fabsf(behind_lc.x()), fabsf(behind_lc.z()));
@@ -1539,7 +1585,7 @@ void NeuronAI::handleCake(int item_skill)
 
     if (m_kart_behind)
     {
-        Vec3 behind_lc = m_kart->getTrans().inverse()
+	    Vec3 behind_lc = m_kart->getTrans().inverse()
             (m_kart_behind->getXYZ());
         const float abs_angle =
             atan2f(fabsf(behind_lc.x()), fabsf(behind_lc.z()));
@@ -1660,7 +1706,7 @@ void NeuronAI::handleBowling(int item_skill)
     bool straight_ahead = false;
     if (m_kart_behind)
     {
-        Vec3 behind_lc = m_kart->getTrans().inverse()
+	    Vec3 behind_lc = m_kart->getTrans().inverse()
             (m_kart_behind->getXYZ());
         const float abs_angle =
             atan2f(fabsf(behind_lc.x()), fabsf(behind_lc.z()));
@@ -1668,7 +1714,7 @@ void NeuronAI::handleBowling(int item_skill)
     }
     if (m_kart_ahead)
     {
-        Vec3 ahead_lc = m_kart->getTrans().inverse()
+	    Vec3 ahead_lc = m_kart->getTrans().inverse()
             (m_kart_ahead->getXYZ());
         const float abs_angle =
             atan2f(fabsf(ahead_lc.x()), fabsf(ahead_lc.z()));
@@ -1712,7 +1758,7 @@ void NeuronAI::handleBowling(int item_skill)
                           (straight_behind && m_distance_behind < m_distance_ahead);
 
     float distance = fire_backwards ? m_distance_behind
-                                    : m_distance_ahead;
+	                           : m_distance_ahead;
     m_controls->setFire( ( (fire_backwards && distance < 30.0f)  ||
                            (!fire_backwards && distance <10.0f)    ));
     if(m_controls->getFire())
@@ -1730,7 +1776,7 @@ void NeuronAI::handleBowling(int item_skill)
  */
 void NeuronAI::handleSwatter(int item_skill)
 {
-    Attachment::AttachmentType type = m_kart->getAttachment()->getType();
+	Attachment::AttachmentType type = m_kart->getAttachment()->getType();
     
     if((item_skill == 2) && (m_time_since_last_shot > 2.0f))
     {
@@ -1762,7 +1808,7 @@ void NeuronAI::handleSwatter(int item_skill)
         }
     }
      // Squared distance for which the swatter works
-     float d2 = m_kart->getKartProperties()->getSwatterDistance();
+	float d2 = m_kart->getKartProperties()->getSwatterDistance();
 
      // Fire if the closest kart ahead or to the back is not already
      // squashed and close enough.
@@ -1807,7 +1853,7 @@ void NeuronAI::handleSwitch(int item_skill,
     {
        if( (item_skill == 4) && items_to_avoid.size() > 0)
        {
-           float d = (items_to_avoid[0]->getXYZ() - m_kart->getXYZ()).length2();
+	       float d = (items_to_avoid[0]->getXYZ() - m_kart->getXYZ()).length2();
        
            if (d < 2.0f)
            {
@@ -1817,7 +1863,7 @@ void NeuronAI::handleSwitch(int item_skill,
         }
         else if (items_to_collect.size() > 0)
         {
-            float d = (items_to_collect[0]->getXYZ() - m_kart->getXYZ()).length2();
+	        float d = (items_to_collect[0]->getXYZ() - m_kart->getXYZ()).length2();
        
             if (d > 10.0f)
             {
@@ -1880,7 +1926,7 @@ void NeuronAI::handleSwitch(int item_skill,
        //Second step : make sure a close item don't make the choice pointless
        if( items_to_avoid.size()>0)
        {
-           float d = (items_to_avoid[0]->getXYZ() - m_kart->getXYZ()).length2();
+	       float d = (items_to_avoid[0]->getXYZ() - m_kart->getXYZ()).length2();
        
            //fire if very close to a bad item
            if (d < 2.0f)
@@ -1891,7 +1937,7 @@ void NeuronAI::handleSwitch(int item_skill,
        }
        if( items_to_collect.size()>0)
        {
-          float d = (items_to_collect[0]->getXYZ() - m_kart->getXYZ()).length2();
+	       float d = (items_to_collect[0]->getXYZ() - m_kart->getXYZ()).length2();
        
           //don't fire if close to a good item
           if (d < 5.0f)
@@ -1918,7 +1964,7 @@ void NeuronAI::handleSwitch(int item_skill,
  */
 void NeuronAI::computeNearestKarts()
 {
-    int my_position    = m_kart->getPosition();
+	int my_position    = m_kart->getPosition();
 
     // If we are not the first, there must be another kart ahead of this kart
     if( my_position>1 )
@@ -1942,7 +1988,7 @@ void NeuronAI::computeNearestKarts()
         m_kart_behind = NULL;
 
     m_distance_leader = m_distance_ahead = m_distance_behind = 9999999.9f;
-    float my_dist = m_world->getOverallDistance(m_kart->getWorldKartId());
+	float my_dist = m_world->getOverallDistance(m_kart->getWorldKartId());
 
     if(m_kart_ahead)
         m_distance_ahead = m_world->getOverallDistance(m_kart_ahead->getWorldKartId()) - my_dist;
@@ -1955,7 +2001,7 @@ void NeuronAI::computeNearestKarts()
     // Compute distance to target player kart
 
     float target_overall_distance = 0.0f;
-    float own_overall_distance = m_world->getOverallDistance(m_kart->getWorldKartId());
+	float own_overall_distance = m_world->getOverallDistance(m_kart->getWorldKartId());
     m_num_players_ahead = 0;
 
     if (m_enabled_network_ai)
@@ -1964,13 +2010,13 @@ void NeuronAI::computeNearestKarts()
         m_distance_to_player = 9999999.9f;
         return;
     }
-    unsigned int n = ProfileWorld::isProfileMode() ? 0 : RaceManager::get()->getNumPlayers();
+	unsigned int n = ProfileWorld::isProfileMode() ? 0 : RaceManager::get()->getNumPlayers();
 
     std::vector<float> overall_distance;
     // Get the players distances
     for(unsigned int i=0; i<n; i++)
     {
-        unsigned int kart_id = m_world->getPlayerKart(i)->getWorldKartId();
+	    unsigned int kart_id = m_world->getPlayerKart(i)->getWorldKartId();
         overall_distance.push_back(m_world->getOverallDistance(kart_id));
     }
 
@@ -2009,8 +2055,8 @@ void NeuronAI::computeNearestKarts()
     // Distribute the AIs to players
     else
     {
-        int num_ai = m_world->getNumKarts() - RaceManager::get()->getNumPlayers();
-        int position_among_ai = curr_position - m_num_players_ahead;
+	    int num_ai = m_world->getNumKarts() - RaceManager::get()->getNumPlayers();
+	    int position_among_ai = curr_position - m_num_players_ahead;
 
         // Converts a position among AI to a position among players
         // The 1st player get an index of 0, the 2nd an index of 2, etc.
@@ -2081,7 +2127,7 @@ void NeuronAI::handleAccelerationAndBraking(int ticks)
 
     if(m_kart->getBlockedByPlungerTicks()>0)
     {
-        int item_skill = computeSkill(ITEM_SKILL);
+	    int item_skill = computeSkill(ITEM_SKILL);
         float accel_threshold = 0.5f;
 
         if (item_skill == 0)
@@ -2345,8 +2391,8 @@ void NeuronAI::handleNitroAndZipper(float max_safe_speed)
     // there may be moments when it's not useful to use nitro (parachutes, etc).
     if(nitro_skill >= 2 && energy_reserve > 0.0f)
     {
-        float finish = m_world->getEstimatedFinishTime(m_kart->getWorldKartId()) - m_world->getTime();
-        float max_time_effect = (nitro_max_active + nitro_max_fadeout) / m_kart->getKartProperties()->getNitroConsumption()
+	    float finish = m_world->getEstimatedFinishTime(m_kart->getWorldKartId()) - m_world->getTime();
+	    float max_time_effect = (nitro_max_active + nitro_max_fadeout) / m_kart->getKartProperties()->getNitroConsumption()
                                 * m_kart->getEnergy()*2; //the minimum burst consumes around 0.5 energy
 
         // The burster forces the AI to consume its reserve by series of 2 bursts
@@ -2664,7 +2710,7 @@ void NeuronAI::findNonCrashingPointNew(Vec3 *result, int *last_node)
 #endif
     while(1)
     {
-        unsigned int next_sector = m_next_node_index[*last_node];
+	    unsigned int next_sector = m_next_node_index[*last_node];
         const DriveNode* dn_next = DriveGraph::get()->getNode(next_sector);
         // Test if the next left point is to the right of the left
         // line. If so, a new left line is defined.
@@ -2767,7 +2813,7 @@ void NeuronAI::findNonCrashingPointNew(Vec3 *result, int *last_node)
         // drive to without crashing with the track.
         int target_sector = m_next_node_index[*last_node];
         float angle1 = DriveGraph::get()->getAngleToNext(target_sector,
-                                                m_successor_index[target_sector]);
+                                                               m_successor_index[target_sector]);
         // In very sharp turns this algorithm tends to aim at off track points,
         // resulting in hitting a corner. So test for this special case and
         // prevent a too-far look-ahead in this case
@@ -2835,7 +2881,7 @@ void NeuronAI::determineTrackDirection()
     float angle_to_track = 0.0f;
     if (m_kart->getVelocity().length() > 0.0f)
     {
-        Vec3 track_direction = -dg->getNode(m_track_node)->getCenter()
+	    Vec3 track_direction = -dg->getNode(m_track_node)->getCenter()
             + dg->getNode(next)->getCenter();
         angle_to_track =
             track_direction.angle(m_kart->getVelocity().normalized());
@@ -2948,12 +2994,12 @@ void NeuronAI::handleCurve()
  */
 float NeuronAI::distanceToSide(float angle, const Vec3& pos, int curve)
 {
-    int steps = 1000;
+	constexpr int steps = 1000;
     int d_node = m_track_node;
-    Vec3 dir_vec = Vec3(0.0f, 0.f, 1.f).rotate(Vec3(0.f, 1.f, 0.f), angle).rotate(m_kart->getRotation().getAxis(), m_kart->getRotation().getAngle());
-    for (int d = 1; steps > d; ++d)
+	Vec3 dir_vec = Vec3(0.0f, 0.f, 1.f).rotate(Vec3(0.f, 1.f, 0.f), angle).rotate(m_kart->getRotation().getAxis(), m_kart->getRotation().getAngle());
+    for (int d = 0; steps > d; ++d)
     {
-        Vec3 step_coord = pos + dir_vec * m_kart_length * float(d);
+        Vec3 step_coord = pos + dir_vec * float(d);
 
         if (d_node != Graph::UNKNOWN_SECTOR &&
             m_next_node_index[d_node] != -1)
@@ -2965,15 +3011,15 @@ float NeuronAI::distanceToSide(float angle, const Vec3& pos, int curve)
             if (curve >= 0)
                 drawRayCast(curve, step_coord);
 #endif
-            return float(d) * m_kart_length;
+            return float(d);
         }
     }
 #ifdef AI_DEBUG_RAYCAST
-    Vec3 step_coord = pos + steps * m_kart_length * dir_vec;
+    Vec3 step_coord = pos + steps * dir_vec;
         if (curve >= 0)
 			drawRayCast(curve, step_coord);
 #endif
-    return float(steps) * m_kart_length;
+    return float(steps);
 }   // distanceToSide
 
 #ifdef AI_DEBUG_RAYCAST
@@ -3170,7 +3216,7 @@ void NeuronAI::setSteering(float angle, float dt)
     //FIXME : the AI speed estimate in curves don't account for this restriction
     if(m_kart->getBlockedByPlungerTicks()>0)
     {
-        int item_skill = computeSkill(ITEM_SKILL);
+	    int item_skill = computeSkill(ITEM_SKILL);
         float steering_limit = 0.5f;
         if (item_skill == 0)
             steering_limit = 0.35f;

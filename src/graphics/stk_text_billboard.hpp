@@ -104,6 +104,12 @@ private:
     void removeGENode();
 public:
     // ------------------------------------------------------------------------
+    void setText(const core::stringw& text)
+    {
+    	m_text = text;
+		reload();
+	}
+    // ------------------------------------------------------------------------
     STKTextBillboard(const video::SColor& color_top,
                      const video::SColor& color_bottom, ISceneNode* parent,
                      ISceneManager* mgr, s32 id,

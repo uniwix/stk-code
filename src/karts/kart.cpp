@@ -3403,24 +3403,27 @@ void Kart::setOnScreenText(const core::stringw& text)
 {
 #ifndef SERVER_ONLY
     if (GUIEngine::isNoGraphics())
-        return;
-        
-    BoldFace* bold_face = font_manager->getFont<BoldFace>();
-    STKTextBillboard* tb =
-        new STKTextBillboard(
-        GUIEngine::getSkin()->getColor("font::bottom"),
-        GUIEngine::getSkin()->getColor("font::top"),
-        getNode(), irr_driver->getSceneManager(), -1,
-        core::vector3df(0.0f, 1.5f, 0.0f),
-        core::vector3df(0.5f, 0.5f, 0.5f));
-    if (CVS->isGLSL())
-        tb->init(text, bold_face);
+	    return;
+
+	BoldFace* bold_face = font_manager->getFont<BoldFace>();
+    if (m_tb == nullptr)
+    {
+    	m_tb =
+	        new STKTextBillboard(
+	        GUIEngine::getSkin()->getColor("font::bottom"),
+	        GUIEngine::getSkin()->getColor("font::top"),
+	        getNode(), irr_driver->getSceneManager(), -1,
+	        core::vector3df(0.0f, 1.5f, 0.0f),
+	        core::vector3df(0.5f, 0.5f, 0.5f));
+	    if (CVS->isGLSL())
+	        m_tb->init(text, bold_face);
+	    else
+	        m_tb->initLegacy(text, bold_face);
+    }
     else
-        tb->initLegacy(text, bold_face);
-    tb->drop();
-    // No need to store the reference to the billboard scene node:
-    // It has one reference to the parent, and will get deleted
-    // when the parent is deleted.
+    {
+        m_tb->setText(text);
+	}
 #endif
 }   // setOnScreenText
 

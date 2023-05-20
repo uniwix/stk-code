@@ -58,6 +58,9 @@ protected:
     std::string  m_controller_name;
 
 public:
+    // Used for NAI to get a rank of all AI
+    virtual float getScore() const { return 0; }
+
                   Controller         (AbstractKart *kart);
     virtual      ~Controller         () {};
     virtual void  reset              () = 0;

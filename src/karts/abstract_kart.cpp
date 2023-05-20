@@ -43,7 +43,7 @@ AbstractKart::AbstractKart(const std::string& ident,
                            const btTransform& init_transform,
                            HandicapLevel handicap,
                            std::shared_ptr<GE::GERenderInfo> ri)
-             : Moveable()
+             : Moveable(), m_tb(nullptr)
 {
     m_world_kart_id   = world_kart_id;
     if (RaceManager::get()->getKartGlobalPlayerId(m_world_kart_id) > -1)
@@ -64,6 +64,7 @@ AbstractKart::~AbstractKart()
         m_kart_animation->handleResetRace();
         delete m_kart_animation;
     }
+    if (m_tb != nullptr) m_tb->drop();
 }   // ~AbstractKart
 
 // ----------------------------------------------------------------------------

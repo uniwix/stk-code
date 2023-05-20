@@ -21,6 +21,7 @@
 
 #include <memory>
 
+#include "graphics/stk_text_billboard.hpp"
 #include "items/powerup_manager.hpp"
 #include "karts/moveable.hpp"
 #include "karts/controller/kart_control.hpp"
@@ -84,6 +85,9 @@ private:
                             std::shared_ptr<GE::GERenderInfo> ri,
                             const KartData& kart_data = KartData());
 protected:
+    /** The text display on top of the kart. */
+	STKTextBillboard* m_tb;
+
     btTransform m_starting_transform;
 
     int m_live_join_util;
