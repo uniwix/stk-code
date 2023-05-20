@@ -345,8 +345,8 @@ void SkiddingAI::update(int ticks)
     determineTrackDirection();
 
     /*Response handling functions*/
-    handleAccelerationAndBraking(ticks);  // TODO: NAI: `m_controls->setAccel(stk_config->m_ai_acceleration$*strength$); m_controls->setBrake($true|false$);`
-    handleSteering(dt);  // TODO: NAI: replace with `m_controls->setSteer($steer_angle$);` (where `steer_angle` has been given by the Neural Network)
+    handleAccelerationAndBraking(ticks);
+    handleSteering(dt);
     handleRescue(dt);
 
     // Make sure that not all AI karts use the zipper at the same

@@ -2657,13 +2657,18 @@ Vec3 Track::flagCommand(const XMLNode *node)
 
 //-----------------------------------------------------------------------------
 /** Handle creation and placement of an item.
- *  \param xyz The position of the item.
- *  \param type The item type.
- *  \param drop True if the item Z position should be determined based on
- *         the track topology.
+ *  \param node The node containing the item information:
+ *                - xyz: The position of the item.
+ *                - type The item type.
+ *                - drop True if the item Z position should be determined based on
+ *                       the track topology.
  */
 void Track::itemCommand(const XMLNode *node)
 {
+    // NeuronAI: don't have any items
+    if (RaceManager::get()->isNAIMode())
+    	return;
+
     const std::string &name = node->getName();
 
     const bool is_mode_ctf = m_is_ctf && RaceManager::get()->isCTFMode();
