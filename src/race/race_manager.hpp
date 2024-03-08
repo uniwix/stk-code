@@ -33,6 +33,7 @@
 
 #include "network/remote_kart_info.hpp"
 #include "race/grand_prix_data.hpp"
+#include "utils/stk_process.hpp"
 #include "utils/vec3.hpp"
 
 class AbstractKart;
@@ -298,6 +299,8 @@ public:
 
     };   // KartStatus
 private:
+    static std::string m_neuron_network_file;
+    int m_session = 0;
 
     /** The kart status data for each kart. */
     std::vector<KartStatus>          m_kart_status;
@@ -356,7 +359,6 @@ private:
     float                            m_gp_time_target;
     /** Total laps from every track, used in Lap Trial mode */
     int                              m_gp_total_laps;
-    std::string                      m_network_file;
     void startNextRace();    // start a next race
 
     friend bool operator< (const KartStatus& left, const KartStatus& right)
@@ -449,9 +451,25 @@ public:
     // ----------------------------------------------------------------------------------------
     bool hasTimeTarget() const { return m_time_target > 0.0f; }
     // ----------------------------------------------------------------------------------------
-    void setNeuronNetworkFile(const std::string& string) { m_network_file = string; }
+    void setNeuronNetworkFile(std::string string)
+    {
+	    m_neuron_network_file = string;
+    }
     // ----------------------------------------------------------------------------------------
-    std::string getNeuronNetworkFile() const { return m_network_file; }
+    std::string getNeuronNetworkFile()
+    {
+	    return m_neuron_network_file;
+    }
+
+    void setSession(int session)
+    {
+		m_session = session;
+	}
+
+    int getSession()
+    {
+        return m_session;
+    }
     // ----------------------------------------------------------------------------------------
     void setMaxGoal(int max_goal)
     {

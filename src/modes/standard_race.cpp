@@ -72,8 +72,10 @@ bool StandardRace::haveBonusBoxes()
  */
 const std::string& StandardRace::getIdent() const
 {
-    if(RaceManager::get()->getMinorMode() == RaceManager::MINOR_MODE_TIME_TRIAL)
+    if (RaceManager::get()->getMinorMode() == RaceManager::MINOR_MODE_TIME_TRIAL)
         return IDENT_TTRIAL;
+    else if (RaceManager::get()->getMinorMode() == RaceManager::MINOR_MODE_NAI)
+        return IDENT_NAI;
     else
         return IDENT_STD;
 }   // getIdent

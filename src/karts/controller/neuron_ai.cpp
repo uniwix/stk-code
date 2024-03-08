@@ -39,6 +39,7 @@
 #include "utils/constants.hpp"
 
 #include "tracks/track_sector.hpp"
+#include <sstream>
 
 #ifdef AI_DEBUG
 #  include "irrlicht.h"
@@ -47,6 +48,30 @@
 
 #include <cmath>
 #include <iostream>
+
+/*
+static int callback(void* NotUsed, int argc, char** argv, char** azColName) {
+	for (int i = 0; i < 11; ++i) {
+        for (int j = 0; j < 6; ++j) {
+            for (int k = 0; k < argc; ++k) {
+                if (std::string(azColName[k]) == "coef_0_" + std::to_string(i) + "_" + std::to_string(j)) {
+					gloal_network[0][i][j] = std::stof(argv[k]);
+                }
+			}
+		}
+	}
+    for (int i = 0; i < 6; ++i) {
+		for (int j = 0; j < 3; ++j) {
+			for (int k = 0; k < argc; ++k) {
+				if (std::string(azColName[k]) == "coef_1_" + std::to_string(i) + "_" + std::to_string(j)) {
+					gloal_network[1][i][j] = std::stof(argv[k]);
+				}
+			}
+		}
+	}
+	return 0;
+}*/
+
 
 NeuronAI::NeuronAI(AbstractKart *kart)
                    : AIBaseLapController(kart)
@@ -68,45 +93,133 @@ NeuronAI::NeuronAI(AbstractKart *kart)
 #define CURVE_RAYCAST_PI_6R 5
 #define CURVE_RAYCAST_FRONT 6
 #define NUM_CURVES (CURVE_RAYCAST_FRONT+1)
-
-    m_curve   = new ShowCurve*[NUM_CURVES];
-    for(unsigned int i=0; i<NUM_CURVES; i++)
-        m_curve[i] = nullptr;
+    if (!GUIEngine::isNoGraphics())
+    {
+        m_curve = new ShowCurve * [NUM_CURVES];
+        for (unsigned int i = 0; i < NUM_CURVES; i++)
+            m_curve[i] = nullptr;
 
 #ifdef AI_DEBUG_RAYCAST
-	m_curve[CURVE_RAYCAST_PI_2L] = new ShowCurve(0.1f, 0.1f,
-													video::SColor(50, 128,   0,   0));
-	m_curve[CURVE_RAYCAST_PI_3L] = new ShowCurve(0.1f, 0.1f,
-        											video::SColor(50, 128,   0,   0));
-	m_curve[CURVE_RAYCAST_PI_6L] = new ShowCurve(0.1f, 0.1f,
-        											video::SColor(50, 128,   0,   0));
-	m_curve[CURVE_RAYCAST_PI_2R] = new ShowCurve(0.1f, 0.1f,
-        											video::SColor(50,   0, 128,   0));
-	m_curve[CURVE_RAYCAST_PI_3R] = new ShowCurve(0.1f, 0.1f,
-        											video::SColor(50,   0, 128,   0));
-	m_curve[CURVE_RAYCAST_PI_6R] = new ShowCurve(0.1f, 0.1f,
-        											video::SColor(50,   0, 128,   0));
-	m_curve[CURVE_RAYCAST_FRONT] = new ShowCurve(0.1f, 0.1f,
-        											video::SColor(50,   0,   0, 128));
+        m_curve[CURVE_RAYCAST_PI_2L] = new ShowCurve(0.1f, 0.1f,
+            video::SColor(50, 128, 0, 0));
+        m_curve[CURVE_RAYCAST_PI_3L] = new ShowCurve(0.1f, 0.1f,
+            video::SColor(50, 128, 0, 0));
+        m_curve[CURVE_RAYCAST_PI_6L] = new ShowCurve(0.1f, 0.1f,
+            video::SColor(50, 128, 0, 0));
+        m_curve[CURVE_RAYCAST_PI_2R] = new ShowCurve(0.1f, 0.1f,
+            video::SColor(50, 0, 128, 0));
+        m_curve[CURVE_RAYCAST_PI_3R] = new ShowCurve(0.1f, 0.1f,
+            video::SColor(50, 0, 128, 0));
+        m_curve[CURVE_RAYCAST_PI_6R] = new ShowCurve(0.1f, 0.1f,
+            video::SColor(50, 0, 128, 0));
+        m_curve[CURVE_RAYCAST_FRONT] = new ShowCurve(0.1f, 0.1f,
+            video::SColor(50, 0, 0, 128));
 #endif
+    }
 #else
-#define CURVE_RAYCAST_PI_2L -1
-#define CURVE_RAYCAST_PI_3L -1
-#define CURVE_RAYCAST_PI_6L -1
-#define CURVE_RAYCAST_PI_2R -1
-#define CURVE_RAYCAST_PI_3R -1
-#define CURVE_RAYCAST_PI_6R -1
-#define CURVE_RAYCAST_FRONT -1
+#define CURVE_RAYCAST_PI_2L (-1)
+#define CURVE_RAYCAST_PI_3L (-1)
+#define CURVE_RAYCAST_PI_6L (-1)
+#define CURVE_RAYCAST_PI_2R (-1)
+#define CURVE_RAYCAST_PI_3R (-1)
+#define CURVE_RAYCAST_PI_6R (-1)
+#define CURVE_RAYCAST_FRONT (-1)
 #endif
 
-    if (RaceManager::get()->getNeuronNetworkFile().empty())
+    if (!RaceManager::get()->getNeuronNetworkFile().empty())
     {
-        std::ifstream file(R"(C:\Users\jbeno\source\repos\uniwix\genetic\GeneticC\)" + RaceManager::get()->getNeuronNetworkFile() + "vec.txt");
-	    m_neuron_network = NetNeurons::Network(file);
+        try
+        {
+            Log::info("NeuronAI", ("Using Network: " + RaceManager::get()->getNeuronNetworkFile()).c_str());
+            Log::info("NeuronAI", ("Using Session: " + std::to_string(RaceManager::get()->getSession())).c_str());
+
+            // connexion au serveur MySQL
+            auto my_sql = toml::parse("C:\\Users\\jbeno\\source\\repos\\uniwix\\genetic\\GeneticC\\mysql.toml");
+            std::string host = toml::find<std::string>(my_sql, "host", "host");
+            int port = toml::find<int>(my_sql, "host", "port");
+            std::string user = toml::find<std::string>(my_sql, "client", "user");
+            std::string password = toml::find<std::string>(my_sql, "client", "password");
+            std::string database = toml::find<std::string>(my_sql, "client", "database");
+            
+            sql::Driver* driver = sql::mysql::get_driver_instance();
+            sql::Connection* con(driver->connect("tcp://" + host + ":" + std::to_string(port), user, password));
+            con->setSchema(database);  // selection de la base de donnees
+            sql::PreparedStatement* pstmt = con->prepareStatement("SELECT reseau_bin, rec FROM Individu WHERE CONCAT(\"GEN\", generation, \"IND\", individu) = ? AND session = ?;");  // creation d'un objet pour executer des requetes sql
+            
+            pstmt->setString(1, RaceManager::get()->getNeuronNetworkFile());
+            pstmt->setInt(2, RaceManager::get()->getSession());
+            
+            sql::ResultSet* res = pstmt->executeQuery();  // execution de la requete sql
+            std::vector<std::vector<std::vector<float>>> gloal_network{ std::vector<std::vector<float>>(6, std::vector<float>(11)), std::vector<std::vector<float>>(3, std::vector<float>(6)) };
+            if (res->next())
+            {
+                /*
+                for (int i = 0; i < 11; ++i) {
+                    for (int j = 0; j < 6; ++j) {
+                        gloal_network[0][j][i] = res->getDouble("coef_0_" + std::to_string(i) + "_" + std::to_string(j));
+                    }
+                }
+                for (int i = 0; i < 6; ++i) {
+                    for (int j = 0; j < 3; ++j) {
+                        gloal_network[1][j][i] = res->getDouble("coef_1_" + std::to_string(i) + "_" + std::to_string(j));
+                    }
+                }*/
+                std::istream* blob = res->getBlob("reseau_bin");
+                std::istreambuf_iterator<char> isb = std::istreambuf_iterator<char>(*blob);
+                std::vector<std::vector<std::vector<float>>> network = NetNeurons::Network::deserialize({ isb, std::istreambuf_iterator<char>() });
+                
+                int rec = res->getInt("rec");
+                std::vector<bool> rec_vector = NetNeurons::Network::decode(rec, network.size() + 1);
+	            
+                m_neuron_network = NetNeurons::Network(network, rec_vector);
+            }
+            else
+            {
+                Log::fatal("NeuronAI", "No data found");
+            }
+            delete res;
+            delete pstmt;
+            delete con;
+        }
+        catch (sql::SQLException e)
+        {
+            Log::fatal("NeuronAI", "SQL error: %s", e.what());
+        }
+        /*
+        int rc;
+        char *zErrMsg = 0;
+        sqlite3 *db;
+        //std::ifstream file(R"(C:\Users\jbeno\source\repos\uniwix\AI\vec\)" + RaceManager::get()->getNeuronNetworkFile() + ".txt");
+        rc = sqlite3_open("C:\\Users\\jbeno\\source\\repos\\uniwix\\genetic\\genetic.sqlite", &db);
+        if (rc) {
+            Log::fatal("NeuronAI", "Can't open database: %s", sqlite3_errmsg(db));
+            exit(0);
+        }
+        else {
+            Log::info("NeuronAI", "Opened database successfully");
+        }
+        std::stringstream sql;
+        sqlite3_exec(db, sql.str().c_str(), callback, 0, &zErrMsg);
+        if (rc != SQLITE_OK) {
+			Log::fatal("NeuronAI", "SQL error: %s", zErrMsg);
+			sqlite3_free(zErrMsg);
+            exit(0);
+		}
+		else {
+			Log::verbose("NeuronAI", "Data imported");
+		}
+        sqlite3_close(db);*/
+        /*assert(m_neuron_network.get_layers().size() == 2);
+        assert(m_neuron_network.get_layers()[0].size() == 6);
+        assert(m_neuron_network.get_layers()[0][0].size() == 11);
+        assert(m_neuron_network.get_layers()[1].size() == 3);
+        assert(m_neuron_network.get_layers()[1][0].size() == 6);*/
     }
     else
     {
-        m_neuron_network = NetNeurons::Network(std::vector<int>({ 6, 6, 3 }));
+
+        Log::info("main", ("Using Network file not working: " + RaceManager::get()->getNeuronNetworkFile()).c_str());
+        m_neuron_network = NetNeurons::Network(std::vector<int>({ 11, 6, 3 }));
     }
 }   // NeuronAI
 
@@ -116,11 +229,14 @@ NeuronAI::NeuronAI(AbstractKart *kart)
 NeuronAI::~NeuronAI()
 {
 #ifdef AI_DEBUG
-    for(unsigned int i=0; i<NUM_CURVES; i++)
+    if (!GUIEngine::isNoGraphics())
     {
-        delete m_curve[i];
+        for (unsigned int i = 0; i < NUM_CURVES; i++)
+        {
+            delete m_curve[i];
+        }
+        delete[] m_curve;
     }
-    delete [] m_curve;
 #endif
 }   // ~NeuronAI
 
@@ -204,30 +320,35 @@ void NeuronAI::update(const int ticks)
     }
 
     // Get distances with raycasts
-	const auto d1 = static_cast<double>(distanceToSide(M_PI / 2., m_kart->getXYZ(), CURVE_RAYCAST_PI_2L));
-	const auto d2 = static_cast<double>(distanceToSide(M_PI / 3., m_kart->getXYZ(), CURVE_RAYCAST_PI_3L));
-	const auto d3 = static_cast<double>(distanceToSide(M_PI / 6., m_kart->getXYZ(), CURVE_RAYCAST_PI_6L));
-	const auto d4 = static_cast<double>(distanceToSide(0., m_kart->getXYZ(), CURVE_RAYCAST_FRONT));
-	const auto d5 = static_cast<double>(distanceToSide(M_PI / -6., m_kart->getXYZ(), CURVE_RAYCAST_PI_6R));
-	const auto d6 = static_cast<double>(distanceToSide(M_PI / -3., m_kart->getXYZ(), CURVE_RAYCAST_PI_3R));
-	const auto d7 = static_cast<double>(distanceToSide(M_PI / -2., m_kart->getXYZ(), CURVE_RAYCAST_PI_2R));
+	const auto d1 = static_cast<float>(distanceToSide(M_PI / 2.,  m_kart->getXYZ(), CURVE_RAYCAST_PI_2L));
+	const auto d2 = static_cast<float>(distanceToSide(M_PI / 3.,  m_kart->getXYZ(), CURVE_RAYCAST_PI_3L));
+	const auto d3 = static_cast<float>(distanceToSide(M_PI / 6.,  m_kart->getXYZ(), CURVE_RAYCAST_PI_6L));
+	const auto d4 = static_cast<float>(distanceToSide(0.,         m_kart->getXYZ(), CURVE_RAYCAST_FRONT));
+	const auto d5 = static_cast<float>(distanceToSide(M_PI / -6., m_kart->getXYZ(), CURVE_RAYCAST_PI_6R));
+	const auto d6 = static_cast<float>(distanceToSide(M_PI / -3., m_kart->getXYZ(), CURVE_RAYCAST_PI_3R));
+	const auto d7 = static_cast<float>(distanceToSide(M_PI / -2., m_kart->getXYZ(), CURVE_RAYCAST_PI_2R));
 
     // Get the inputs for the neural network
-    const std::vector<double> inputs({
-        (d1 - d7)/100.,
-        (d2 - d6)/100.,
-        (d3 - d5)/100.,
-    	d4/100.,
-        static_cast<double>(m_kart->getSpeed()),
-        static_cast<double>(m_kart->getSteerPercent()),
+    const std::vector<float> inputs({
+        d1,
+        d2,
+        d3,
+    	d4,
+    	d5,
+    	d6,
+    	d7,
+        static_cast<float>(getAngle()),
+        static_cast<float>(distanceToCenter()),
+        static_cast<float>(m_kart->getSpeed()),
+        static_cast<float>(m_kart->getSteerPercent()),
     });
 
     // Compute the outputs of the neural network
-    const std::vector<double> outs = m_neuron_network.compute(inputs);
-
+    const std::vector<float> outs = m_neuron_network.compute(inputs);
+    
     // Get the outputs in the right format
     const auto steer(static_cast<float>(outs[0]));
-	const float acc((static_cast<float>(outs[1]) + 1.f) / 2.f);
+	const auto acc(static_cast<float>(outs[1]));
     const bool brake = outs[2] < 0.;
 
     // Set the controls of the kart according to the outputs of the neural network
@@ -246,6 +367,25 @@ void NeuronAI::update(const int ticks)
     AIBaseLapController::update(ticks);
 }   // update
 
+float NeuronAI::getAngle()
+{
+    // check if the player is going in the wrong direction
+    const DriveNode* node = DriveGraph::get()->getNode(m_track_node);
+    Vec3 center_line = node->getUpperCenter() - node->getLowerCenter();
+    float angle_diff = m_kart->getVelocity().angle(center_line);
+
+    if (angle_diff > M_PI)
+        angle_diff -= 2 * M_PI;
+    else if (angle_diff < -M_PI)
+        angle_diff += 2 * M_PI;
+    return angle_diff / M_PI;
+}
+
+float NeuronAI::distanceToCenter()
+{
+    return m_world->getDistanceToCenterForKart(m_kart->getWorldKartId());
+}
+
 //-----------------------------------------------------------------------------
 /**
  * \brief Get the score gain during the time dt.
@@ -253,7 +393,7 @@ void NeuronAI::update(const int ticks)
  * \param dist_sum The sum of the distances to the road side. Used to penalize AI that are out of the road.
  * \return  The score gain
  */
-float NeuronAI::getDeltaScore(const float dt, const double dist_sum) const
+float NeuronAI::getDeltaScore(const float dt, const float dist_sum) const
 {
     const int sector = m_world->getTrackSector(m_kart->getWorldKartId())->getCurrentGraphNode();
 
@@ -294,16 +434,19 @@ float NeuronAI::distanceToSide(const float angle, const Vec3& pos, const int cur
         if (d_node == Graph::UNKNOWN_SECTOR)
         {
 #ifdef AI_DEBUG_RAYCAST
-            if (curve >= 0)
+            if (curve >= 0 && !GUIEngine::isNoGraphics())
                 drawRayCast(curve, step_coord);
 #endif
             return static_cast<float>(d);
         }
     }
 #ifdef AI_DEBUG_RAYCAST
-    Vec3 step_coord = pos + steps * dir_vec;
+    if (!GUIEngine::isNoGraphics())
+    {
+        Vec3 step_coord = pos + steps * dir_vec;
         if (curve >= 0)
-			drawRayCast(curve, step_coord);
+            drawRayCast(curve, step_coord);
+    }
 #endif
     return static_cast<float>(steps);
 }   // distanceToSide

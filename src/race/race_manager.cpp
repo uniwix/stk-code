@@ -48,7 +48,6 @@
 #include "modes/three_strikes_battle.hpp"
 #include "modes/soccer_world.hpp"
 #include "modes/lap_trial.hpp"
-#include "modes/training_race.hpp"
 #include "network/protocol_manager.hpp"
 #include "network/network_config.hpp"
 #include "network/network_string.hpp"
@@ -87,6 +86,8 @@ extern "C" {
 
 //=============================================================================================
 RaceManager* g_race_manager[PT_COUNT];
+
+std::string RaceManager::m_neuron_network_file;
 //---------------------------------------------------------------------------------------------
 RaceManager* RaceManager::get()
 {
@@ -139,7 +140,6 @@ RaceManager::RaceManager()
     m_skipped_tracks_in_gp = 0;
     m_gp_time_target = 0.0f;
     m_gp_total_laps = 0;
-    m_network_file = "";
     setMaxGoal(0);
     setTimeTarget(0.0f);
     setReverseTrack(false);
@@ -655,10 +655,9 @@ void RaceManager::startNextRace()
     else if(m_minor_mode==MINOR_MODE_FOLLOW_LEADER)
         World::setWorld(new FollowTheLeaderRace());
     else if(m_minor_mode==MINOR_MODE_NORMAL_RACE ||
+			m_minor_mode == MINOR_MODE_NAI       ||
             m_minor_mode==MINOR_MODE_TIME_TRIAL)
         World::setWorld(new StandardRace());
-    else if(m_minor_mode==MINOR_MODE_NAI)
-        World::setWorld(new TrainingRace());
     else if(m_minor_mode==MINOR_MODE_LAP_TRIAL)
     {
         World::setWorld(new LapTrial());

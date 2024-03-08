@@ -1532,16 +1532,13 @@ int handleCmdLine(bool has_server_config, bool has_parent_process)
     // Get the neuron network file
     if (CommandLine::has("--neuron-network", &s))
 	{
-        if (!std::ifstream(R"(C:\Users\jbeno\source\repos\uniwix\genetic\GeneticC\)" + s + "vec.txt"))
-		{
-			Log::error("main", "Could not load neuron network file '%s'",
-                					   s.c_str());
-		}
-        else
-        {
-	        RaceManager::get()->setNeuronNetworkFile(s);
-        }
+        RaceManager::get()->setNeuronNetworkFile(s);
 	}
+
+    if (CommandLine::has("--session", &s))
+    {
+        RaceManager::get()->setSession(std::stoi(s));
+    }
 
     // Race parameters
     if(CommandLine::has("--kartsize-debug"))

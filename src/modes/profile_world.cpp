@@ -171,6 +171,7 @@ void ProfileWorld::update(int ticks)
 
 }   // update
 
+
 //-----------------------------------------------------------------------------
 /** This function is called when the race is finished, but end-of-race
  *  animations have still to be played. In the case of profiling,
@@ -178,14 +179,85 @@ void ProfileWorld::update(int ticks)
  */
 void ProfileWorld::enterRaceOverState()
 {
-    // Get the score of the kart and write it to a file
-    auto& kart = m_karts[0];
-	float score = kart->getController()->getScore();
-	std::ofstream file(R"(C:\Users\jbeno\source\repos\uniwix\genetic\GeneticC\)" + RaceManager::get()->getNeuronNetworkFile() + "score.txt");
-	file << score;
-	file.close();
+    if (!RaceManager::get()->getNeuronNetworkFile().empty())
+    {
+	    // Get the score of the kart and write it to a file
+	    auto kart = std::dynamic_pointer_cast<KartWithStats>(m_karts[0]);
+		int score = static_cast<int>(kart->getController()->getScore());
+		/*std::string path = R"(C:\Users\jbeno\source\repos\uniwix\AI\score\)" + RaceManager::get()->getNeuronNetworkFile() + ".txt";
+	    std::ofstream file(path);
+	    if (!file)
+	    {
+	        Log::error("Profile", "Score: Cannot write score to file '%s'", path.c_str());
+	        assert(false);
+	    }
+	    if (kart->getRescueCount() == 0)
+	    {
+		    file << score;
+	    }
+	    else // if kart was rescued, it's bad
+	    {
+		    file << -10000.0;
+	    }
+	    file.close();*/
+        /*
+        char *zErrMsg = 0;
+        int rc;
+        sqlite3 *db;
+        rc = sqlite3_open("C:\\Users\\jbeno\\source\\repos\\uniwix\\genetic\\genetic.sqlite", &db);
 
-    // If in timing mode, the number of laps is way too high (which avoids
+        if (rc) {
+            Log::fatal("Profile", "Can't open database: %s", sqlite3_errmsg(db));
+            exit(0);
+        }
+        else {
+			Log::verbose("Profile", "Opened database successfully");
+		}
+        std::stringstream sql;
+        sql << "UPDATE Individu SET score = " << ((kart->getRescueCount() == 0) ? score : -2000) << " where 'GEN' || generation || 'IND' || individu = '" << RaceManager::get()->getNeuronNetworkFile() << "' AND session = " << RaceManager::get()->getSession() << ";";
+        sqlite3_exec(db, sql.str().c_str(), nullptr, nullptr, &zErrMsg);
+        if (rc != SQLITE_OK)
+        {
+			Log::error("Profile", "SQL error: %s", zErrMsg);
+			sqlite3_free(zErrMsg);
+		}
+        else
+        {
+            Log::verbose("Profile", "Operation done successfully! | score: %s", std::to_string(score).c_str());
+        }
+        sqlite3_close(db);*/
+        try
+        {
+            // connexion au serveur MySQL
+            auto my_sql = toml::parse("C:\\Users\\jbeno\\source\\repos\\uniwix\\genetic\\GeneticC\\mysql.toml");
+            std::string host = toml::find<std::string>(my_sql, "host", "host");
+            int port = toml::find<int>(my_sql, "host", "port");
+            std::string user = toml::find<std::string>(my_sql, "client", "user");
+            std::string password = toml::find<std::string>(my_sql, "client", "password");
+            std::string database = toml::find<std::string>(my_sql, "client", "database");
+            
+            sql::Driver* driver = sql::mysql::get_driver_instance();
+            sql::Connection* con(driver->connect("tcp://" + host + ":" + std::to_string(port), user, password));
+            con->setSchema(database);  // selection de la base de donnees
+            sql::PreparedStatement* pstmt = con->prepareStatement("UPDATE Individu SET score = ? where CONCAT(\"GEN\", generation, \"IND\", individu) = ? AND session = ?;");  // creation d'un objet pour executer des requetes sql
+
+            pstmt->setInt(1, (kart->getRescueCount() == 0) ? score : -2000);  // score
+            pstmt->setString(2, RaceManager::get()->getNeuronNetworkFile());  // nom de l'individu
+            pstmt->setInt(3, RaceManager::get()->getSession());  // session
+
+            pstmt->execute();  // execution de la requete sql
+            
+            delete pstmt;
+            delete con;
+            Log::verbose("Profile", "Operation done successfully! | score: %s", std::to_string(score).c_str());
+        }
+        catch (sql::SQLException e)
+        {
+            Log::fatal("Profile", "MySQL error: %s", e.what());
+        }
+    }
+
+	// If in timing mode, the number of laps is way too high (which avoids
     // aborting too early). So in this case determine the maximum number
     // of laps and set this +1 as the number of laps to get more meaningful
     // time estimations.

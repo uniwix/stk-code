@@ -39,6 +39,15 @@
 #include <Network.hpp>
 #include "graphics/show_curve.hpp"
 
+#include "mysql_connection.h"
+#include "mysql_driver.h"
+#include <cppconn/driver.h>
+#include <cppconn/exception.h>
+#include <cppconn/statement.h>
+#include <cppconn/prepared_statement.h>
+
+#include <toml.hpp>
+
 class ItemManager;
 class ItemState;
 class LinearWorld;
@@ -83,7 +92,9 @@ private:
     NetNeurons::Network m_neuron_network;
 
     float distanceToSide(float angle, const Vec3& pos, int curve=-1) const;
-    float getDeltaScore(float dt, double dist_sum) const;
+    float getDeltaScore(float dt, float dist_sum) const;
+    float getAngle();
+    float distanceToCenter();
 
 #ifdef AI_DEBUG_RAYCAST
     void drawRayCast(int curve, const Vec3& pos) const;
