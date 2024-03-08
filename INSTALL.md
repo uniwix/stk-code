@@ -81,7 +81,7 @@ Compilation instruction is explained there. If you don't need this feature, pass
 
 ### Shaderc for Vulkan support
 
-You need to compile [Shaderc](https://github.com/google/shaderc) for vulkan support in SuperTuxKart if you are not building for Windows or macOS, If you don't need this feature, pass `-DNO_SHADERC=on` to cmake.
+You need to compile [Shaderc](https://github.com/google/shaderc) for vulkan support in SuperTuxKart if you are not building for Windows or macOS. If you don't need this feature, pass `-DNO_SHADERC=on` to cmake.
 
 ### Compiling
 
@@ -253,7 +253,9 @@ Add ` -DCMAKE_OSX_DEPLOYMENT_TARGET=10.9` for 10.9 compatibility.
 By default, the executable that is produced is not ready for distribution. Install <https://github.com/auriamg/macdylibbundler> and run:
 
 ```bash
-dylibbundler -od -b -x ./bin/SuperTuxKart.app/Contents/MacOS/supertuxkart -d ./bin/SuperTuxKart.app/Contents/libs/ -p @executable_path/../libs/
+dylibbundler -od -b -x ./bin/SuperTuxKart.app/Contents/MacOS/supertuxkart -d ./bin/SuperTuxKart.app/Contents/libs/ -p @executable_path/../libs/ -s ../dependencies-macosx/lib
 ```
+
+Add `-ns` to disable ad-hoc codesigning
 
 Afterwards, copy the contents of `stk-assets` into `/SuperTuxKart.app/Contents/Resources/data`.
