@@ -875,12 +875,24 @@ void NetworkingLobby::unloaded()
 // ----------------------------------------------------------------------------
 void NetworkingLobby::tearDown()
 {
+    if (m_state == LS_ADD_PLAYERS)
+    {
+        UserConfigParams::m_enable_network_splitscreen = false;
+        NetworkConfig::get()->cleanNetworkPlayers();
+        NetworkConfig::get()->addNetworkPlayer(
+            input_manager->getDeviceManager()->getLatestUsedDevice(),
+            PlayerManager::getCurrentPlayer(), HANDICAP_NONE);
+        NetworkConfig::get()->doneAddingNetworkPlayers();
+    }
+
     gui::IGUIStaticText* st =
         m_text_bubble->getIrrlichtElement<gui::IGUIStaticText>();
     st->setMouseCallback(nullptr);
     m_player_list = NULL;
     m_joined_server.reset();
     m_header_text = _("Lobby");
+    if (m_header)
+        m_header->setText(m_header_text, true);
     m_header_text_width = 0;
     // Server has a dummy network lobby too
     if (!NetworkConfig::get()->isClient())

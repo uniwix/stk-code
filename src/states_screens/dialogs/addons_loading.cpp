@@ -18,10 +18,12 @@
 
 #include "states_screens/dialogs/addons_loading.hpp"
 
+#include "audio/sfx_manager.hpp"
 #include "addons/addons_manager.hpp"
 #include "config/player_manager.hpp"
 #include "config/user_config.hpp"
 #include "guiengine/engine.hpp"
+#include "guiengine/message_queue.hpp"
 #include "guiengine/scalable_font.hpp"
 #include "guiengine/widgets.hpp"
 #include "input/input_manager.hpp"
@@ -55,7 +57,7 @@ AddonsLoading::AddonsLoading(const std::string &id)
              , m_addon(*(addons_manager->getAddon(id)) )
 #endif
 {
-    
+    m_message_shown    = false;
     m_icon_shown       = false;
 #ifdef SERVER_ONLY
     m_icon_downloaded  = std::make_shared<bool>(false);
@@ -111,12 +113,12 @@ void AddonsLoading::beforeAddingWidgets()
 
     if (m_addon.isInstalled())
     {
-        /* only keep the button as "update" if allowed to access the net
-         * and  not in error state
+        /* Turn "Install" button into "Update" if allowed to access the internet
+         * and not in an errored state
          */
         if (m_addon.needsUpdate() && !addons_manager->wasError()
             && UserConfigParams::m_internet_status==RequestManager::IPERM_ALLOWED)
-            getWidget<IconButtonWidget> ("install")->setLabel( _("Update") );
+            getWidget<IconButtonWidget> ("install")->setText( _("Update") );
         else
             r->removeChildNamed("install");
     }
@@ -278,6 +280,16 @@ void AddonsLoading::voteClicked()
         std::string addon_id = m_addon.getId();
         dismiss();
         new VoteDialog(addon_id);
+    }
+    else
+    {
+        SFXManager::get()->quickSound("anvil");
+        if (!m_message_shown)
+        {
+            MessageQueue::add(MessageQueue::MT_ERROR,
+                _("You must be logged in to rate this addon."));
+            m_message_shown = true;
+        }
     }
 #endif
 }   // voteClicked

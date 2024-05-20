@@ -68,7 +68,6 @@ void OnlineScreen::loadedFromFile()
 {
     m_enable_splitscreen = getWidget<CheckBoxWidget>("enable-splitscreen");
     assert(m_enable_splitscreen);
-    m_enable_splitscreen->setState(UserConfigParams::m_enable_network_splitscreen);
 }   // loadedFromFile
 
 // ----------------------------------------------------------------------------
@@ -92,6 +91,8 @@ void OnlineScreen::init()
     RibbonWidget* r = getWidget<RibbonWidget>("menu_toprow");
     r->setFocusForPlayer(PLAYER_ID_GAME_MASTER);
 
+    m_enable_splitscreen->setState(
+        UserConfigParams::m_enable_network_splitscreen);
     // Pre-add a default single player profile in network
     if (!m_enable_splitscreen->getState() &&
         NetworkConfig::get()->getNetworkPlayers().empty())
@@ -209,9 +210,8 @@ void OnlineScreen::eventCallback(Widget* widget, const std::string& name,
         if (UserConfigParams::m_internet_status != RequestManager::IPERM_ALLOWED)
         {
             new MessageDialog(_("You can not play online without internet access. "
-                                "If you want to play online, go to options, select "
-                                " tab 'User Interface', and edit "
-                                "\"Connect to the Internet\"."));
+                                "If you want to play online, go in the options menu, "
+                                "and check \"Connect to the Internet\"."));
             return;
         }
 
