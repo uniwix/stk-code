@@ -515,6 +515,8 @@ std::shared_ptr<AbstractKart> World::createKart
                 ai = new BattleAI(new_kart.get());
             else if (RaceManager::get()->getMinorMode() == RaceManager::MINOR_MODE_NAI)
                 ai = new NeuronAI(new_kart.get());
+            else if (RaceManager::get()->getMinorMode() == RaceManager::MINOR_MODE_TAI)
+                ai = new TestAI(new_kart.get());
             else
                 ai = new SkiddingAI(new_kart.get());
             controller = new NetworkAIController(new_kart.get(),
@@ -582,6 +584,8 @@ Controller* World::loadAIController(AbstractKart* kart)
         turn=2;
     else if(RaceManager::get()->getMinorMode()==RaceManager::MINOR_MODE_NAI)
         turn=3;
+    else if(RaceManager::get()->getMinorMode()==RaceManager::MINOR_MODE_TAI)
+        turn=4;
     // If different AIs should be used, adjust turn (or switch randomly
     // or dependent on difficulty)
     switch(turn)
@@ -603,6 +607,9 @@ Controller* World::loadAIController(AbstractKart* kart)
         case 3:
             controller = new NeuronAI(kart);
             break;
+		case 4:
+			controller = new TestAI(kart);
+			break;
         default:
             Log::warn("[World]", "Unknown AI, using default.");
             controller = new SkiddingAI(kart);

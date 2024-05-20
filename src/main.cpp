@@ -1226,6 +1226,12 @@ int handleCmdLine(bool has_server_config, bool has_parent_process)
             RaceManager::get()->setMinorMode(RaceManager::MINOR_MODE_NAI);
             break;
         }
+        case 7:
+        {
+            ServerConfig::m_server_mode = 10;
+            RaceManager::get()->setMinorMode(RaceManager::MINOR_MODE_TAI);
+            break;
+        }
         default:
             Log::warn("main", "Invalid race mode '%d' - ignored.", n);
         }

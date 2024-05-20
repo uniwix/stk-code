@@ -54,6 +54,7 @@ static const std::string IDENT_OVERWORLD("OVERWORLD"       );
 static const std::string IDENT_CUTSCENE ("CUTSCENE"        );
 static const std::string IDENT_LAP_TRIAL("LAP_TRIAL"       );
 static const std::string IDENT_NAI      ("NAI"             );
+static const std::string IDENT_TAI      ("TAI"             );
 
 /**
  * The race manager has two functions:
@@ -116,6 +117,7 @@ public:
         MINOR_MODE_TIME_TRIAL       = LINEAR_RACE(1, true),
         MINOR_MODE_FOLLOW_LEADER    = LINEAR_RACE(2, false),
         MINOR_MODE_NAI              = LINEAR_RACE(4, true),
+        MINOR_MODE_TAI              = LINEAR_RACE(5, true),
 
         MINOR_MODE_3_STRIKES        = BATTLE_ARENA(0),
         MINOR_MODE_FREE_FOR_ALL     = BATTLE_ARENA(1),
@@ -157,6 +159,7 @@ public:
             case MINOR_MODE_EASTER_EGG:       return IDENT_EASTER;
             case MINOR_MODE_SOCCER:           return IDENT_SOCCER;
             case MINOR_MODE_NAI:              return IDENT_NAI;
+            case MINOR_MODE_TAI:              return IDENT_TAI;
             default: assert(false);
                      return IDENT_STD;  // stop compiler warning
         }
@@ -180,6 +183,7 @@ public:
             case MINOR_MODE_EASTER_EGG:     return "/gui/icons/mode_easter.png";
             case MINOR_MODE_SOCCER:         return "/gui/icons/mode_soccer.png";
             case MINOR_MODE_NAI:            return "/gui/icons/mode_ftl.png"; // TODO: NAI: Add AI trainning icon
+            case MINOR_MODE_TAI:            return "/gui/icons/mode_ftl.png";
             default: assert(false); return NULL;
         }
     }   // getIconOf
@@ -202,6 +206,7 @@ public:
             case MINOR_MODE_EASTER_EGG:     return false;
             case MINOR_MODE_SOCCER:         return true;
             case MINOR_MODE_NAI:            return true;
+            case MINOR_MODE_TAI:            return true;
             default: assert(false);         return false;
         }
     }   // hasAI
@@ -224,6 +229,7 @@ public:
         else if (name==IDENT_EASTER ) return MINOR_MODE_EASTER_EGG;
         else if (name==IDENT_SOCCER)  return MINOR_MODE_SOCCER;
         else if (name==IDENT_NAI)     return MINOR_MODE_NAI;
+        else if (name==IDENT_TAI)     return MINOR_MODE_TAI;
 
         assert(0);
         return MINOR_MODE_NONE;
@@ -597,6 +603,7 @@ public:
             case MINOR_MODE_EASTER_EGG:     return "egg-hunt";
             case MINOR_MODE_SOCCER:         return "soccer";
             case MINOR_MODE_NAI:         return "ai-training";
+            case MINOR_MODE_TAI:         return "test-ai";
             default: assert(false);         return "";
         }
     }
@@ -799,6 +806,8 @@ public:
     bool isLapTrialMode() const  { return m_minor_mode == MINOR_MODE_LAP_TRIAL; }
     // ----------------------------------------------------------------------------------------
     bool isNAIMode() const  { return m_minor_mode == MINOR_MODE_NAI; }
+    // ----------------------------------------------------------------------------------------
+    bool isTAIMode() const  { return m_minor_mode == MINOR_MODE_TAI; }
     // ----------------------------------------------------------------------------------------
      /** \brief Returns the number of second's decimals to display */
     int currentModeTimePrecision() const

@@ -62,6 +62,7 @@ DemoWorld::DemoWorld()
         case 1: RaceManager::get()->setMinorMode(RaceManager::MINOR_MODE_TIME_TRIAL); break;
         case 2: RaceManager::get()->setMinorMode(RaceManager::MINOR_MODE_FOLLOW_LEADER); break;
         case 6: RaceManager::get()->setMinorMode(RaceManager::MINOR_MODE_NAI); break;
+        case 7: RaceManager::get()->setMinorMode(RaceManager::MINOR_MODE_TAI); break;
         default: RaceManager::get()->setMinorMode(RaceManager::MINOR_MODE_NORMAL_RACE); break;
     }
     // Selects the user's current difficulty setting

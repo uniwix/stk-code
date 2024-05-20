@@ -656,6 +656,7 @@ void RaceManager::startNextRace()
         World::setWorld(new FollowTheLeaderRace());
     else if(m_minor_mode==MINOR_MODE_NORMAL_RACE ||
 			m_minor_mode == MINOR_MODE_NAI       ||
+			m_minor_mode == MINOR_MODE_TAI       ||
             m_minor_mode==MINOR_MODE_TIME_TRIAL)
         World::setWorld(new StandardRace());
     else if(m_minor_mode==MINOR_MODE_LAP_TRIAL)
@@ -1301,6 +1302,7 @@ const core::stringw RaceManager::getNameOf(const MinorRaceModeType mode)
         case MINOR_MODE_SOCCER:         return _("Soccer");
         //I18N: Game mode
         case MINOR_MODE_NAI:         return _("Training");
+        case MINOR_MODE_TAI:         return _("Test");
         default: return L"";
     }
 }   // getNameOf

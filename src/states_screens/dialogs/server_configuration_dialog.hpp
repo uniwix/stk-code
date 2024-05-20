@@ -89,6 +89,12 @@ public:
                 m_prev_value = 0;
                 break;
             }
+            case RaceManager::MINOR_MODE_TAI:
+            {
+                m_prev_mode = 7;
+                m_prev_value = 0;
+                break;
+            }
             default:
             {
                 m_prev_mode = 0;
