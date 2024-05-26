@@ -41,6 +41,8 @@
 #  undef AI_DEBUG_KART_HEADING
    // Shows line from kart to its aim point
 #  undef AI_DEBUG_KART_AIM
+   // Shows raycast lines
+#  undef AI_DEBUG_RAYCAST
 #endif
 
 
@@ -54,7 +56,7 @@
 class ItemState;
 
 #ifdef AI_DEBUG
-  class ShowCurve;
+class ShowCurve;
 
 namespace irr
 {
@@ -180,6 +182,12 @@ private:
     enum {PSA_DEFAULT, PSA_FIXED, PSA_NEW}
           m_point_selection_algorithm;
 
+    float m_score;
+
+    float distanceToSide(float angle, const Vec3& pos, int curve = -1) const;
+
+    float getDeltaScore(float dt, float dist_sum) const;
+
 #ifdef AI_DEBUG
     /** For skidding debugging: shows the estimated turn shape. */
     ShowCurve **m_curve;
@@ -193,6 +201,10 @@ private:
     irr::scene::ISceneNode *m_item_sphere;
 #endif
 
+
+#ifdef AI_DEBUG_RAYCAST
+    void drawRayCast(int curve, const Vec3& pos) const;
+#endif
 
     /*Functions called directly from update(). They all represent an action
      *that can be done, and end up setting their respective m_controls
@@ -238,6 +250,7 @@ public:
     virtual void update      (int ticks);
     virtual void reset       ();
     virtual const irr::core::stringw& getNamePostfix() const;
+    float getScore() const override { return m_score; }
 };
 
 #endif

@@ -2666,7 +2666,7 @@ Vec3 Track::flagCommand(const XMLNode *node)
 void Track::itemCommand(const XMLNode *node)
 {
     // NeuronAI: don't have any items
-    if (RaceManager::get()->isNAIMode())
+    if (RaceManager::get()->isNAIMode() || RaceManager::get()->isTAIMode())
     	return;
 
     const std::string &name = node->getName();

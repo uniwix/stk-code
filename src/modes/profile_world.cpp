@@ -179,9 +179,9 @@ void ProfileWorld::update(int ticks)
  */
 void ProfileWorld::enterRaceOverState()
 {
-    if (!RaceManager::get()->getNeuronNetworkFile().empty())
+    if (RaceManager::get()->getMinorMode() == RaceManager::MINOR_MODE_NAI || RaceManager::get()->getMinorMode() == RaceManager::MINOR_MODE_TAI)
     {
-	    // Get the score of the kart and write it to a file
+	    // Get the score of the kart
 	    auto kart = std::dynamic_pointer_cast<KartWithStats>(m_karts[0]);
 		int score = static_cast<int>(kart->getController()->getScore());
 		/*std::string path = R"(C:\Users\jbeno\source\repos\uniwix\AI\score\)" + RaceManager::get()->getNeuronNetworkFile() + ".txt";

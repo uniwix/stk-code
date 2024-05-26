@@ -47,6 +47,7 @@
 #include "utils/log.hpp"
 #include "utils/vs.hpp"
 
+#include "tracks/track_sector.hpp"
 #include <line2d.h>
 
 #ifdef AI_DEBUG
@@ -70,6 +71,8 @@ SkiddingAI::SkiddingAI(AbstractKart *kart)
                    : AIBaseLapController(kart)
 {
     reset();
+    m_score = 0.f;
+
     // Determine if this AI has superpowers, which happens e.g.
     // for the final race challenge against nolok.
     m_superpower = RaceManager::get()->getAISuperPower();
@@ -113,34 +116,67 @@ SkiddingAI::SkiddingAI(AbstractKart *kart)
 #define CURVE_RIGHT      3
 #define CURVE_AIM        4
 #define CURVE_QG         5
-#define NUM_CURVES (CURVE_QG+1)
-
-    m_curve   = new ShowCurve*[NUM_CURVES];
-    for(unsigned int i=0; i<NUM_CURVES; i++)
-        m_curve[i] = NULL;
+#define CURVE_RAYCAST_PI_2L 6
+#define CURVE_RAYCAST_PI_3L 7
+#define CURVE_RAYCAST_PI_6L 8
+#define CURVE_RAYCAST_PI_2R 9
+#define CURVE_RAYCAST_PI_3R 10
+#define CURVE_RAYCAST_PI_6R 11
+#define CURVE_RAYCAST_FRONT 12
+#define NUM_CURVES (CURVE_RAYCAST_FRONT+1)
+    if (!GUIEngine::isNoGraphics())
+    {
+        m_curve   = new ShowCurve*[NUM_CURVES];
+        for(unsigned int i=0; i<NUM_CURVES; i++)
+            m_curve[i] = NULL;
 #ifdef AI_DEBUG_CIRCLES
-    m_curve[CURVE_PREDICT1]  = new ShowCurve(0.05f, 0.5f,
+        m_curve[CURVE_PREDICT1]  = new ShowCurve(0.05f, 0.5f,
                                    irr::video::SColor(128,   0,   0, 128));
 #endif
 #ifdef AI_DEBUG_KART_HEADING
-    irr::video::SColor c;
-    c = irr::video::SColor(128,   0,   0, 128);
-    m_curve[CURVE_KART]      = new ShowCurve(0.5f, 0.5f, c);
+        irr::video::SColor c;
+        c = irr::video::SColor(128,   0,   0, 128);
+        m_curve[CURVE_KART]      = new ShowCurve(0.5f, 0.5f, c);
 #endif
 #ifdef AI_DEBUG_NEW_FIND_NON_CRASHING
-    m_curve[CURVE_LEFT]      = new ShowCurve(0.5f, 0.5f,
-                                            video::SColor(128, 128,   0,   0));
-    m_curve[CURVE_RIGHT]     = new ShowCurve(0.5f, 0.5f,
-                                            video::SColor(128,   0, 128,   0));
+        m_curve[CURVE_LEFT]      = new ShowCurve(0.5f, 0.5f,
+                                                video::SColor(128, 128,   0,   0));
+        m_curve[CURVE_RIGHT]     = new ShowCurve(0.5f, 0.5f,
+                                                video::SColor(128,   0, 128,   0));
 #endif
-    m_curve[CURVE_QG]        = new ShowCurve(0.5f, 0.5f,
-                                            video::SColor(128,   0, 128,   0));
+        m_curve[CURVE_QG]        = new ShowCurve(0.5f, 0.5f,
+                                                video::SColor(128,   0, 128,   0));
 #ifdef AI_DEBUG_KART_AIM
-    irr::video::SColor c1;
-    c1 = irr::video::SColor(128,   0,   0, 128);
+        irr::video::SColor c1;
+        c1 = irr::video::SColor(128,   0,   0, 128);
 
-    m_curve[CURVE_AIM]       = new ShowCurve(0.5f, 0.5f, c1);
+        m_curve[CURVE_AIM]       = new ShowCurve(0.5f, 0.5f, c1);
 #endif
+#ifdef AI_DEBUG_RAYCAST
+        m_curve[CURVE_RAYCAST_PI_2L] = new ShowCurve(0.1f, 0.1f,
+            video::SColor(50, 128, 0, 0));
+        m_curve[CURVE_RAYCAST_PI_3L] = new ShowCurve(0.1f, 0.1f,
+            video::SColor(50, 128, 0, 0));
+        m_curve[CURVE_RAYCAST_PI_6L] = new ShowCurve(0.1f, 0.1f,
+            video::SColor(50, 128, 0, 0));
+        m_curve[CURVE_RAYCAST_PI_2R] = new ShowCurve(0.1f, 0.1f,
+            video::SColor(50, 0, 128, 0));
+        m_curve[CURVE_RAYCAST_PI_3R] = new ShowCurve(0.1f, 0.1f,
+            video::SColor(50, 0, 128, 0));
+        m_curve[CURVE_RAYCAST_PI_6R] = new ShowCurve(0.1f, 0.1f,
+            video::SColor(50, 0, 128, 0));
+        m_curve[CURVE_RAYCAST_FRONT] = new ShowCurve(0.1f, 0.1f,
+            video::SColor(50, 0, 0, 128));
+#endif
+    }
+#else
+#define CURVE_RAYCAST_PI_2L (-1)
+#define CURVE_RAYCAST_PI_3L (-1)
+#define CURVE_RAYCAST_PI_6L (-1)
+#define CURVE_RAYCAST_PI_2R (-1)
+#define CURVE_RAYCAST_PI_3R (-1)
+#define CURVE_RAYCAST_PI_6R (-1)
+#define CURVE_RAYCAST_FRONT (-1)
 #endif
 
 }   // SkiddingAI
@@ -183,6 +219,7 @@ void SkiddingAI::reset()
     m_avoid_item_close           = false;
     m_skid_probability_state     = SKID_PROBAB_NOT_YET;
     m_last_item_random           = NULL;
+	m_score = 0.0f;
 
     AIBaseLapController::reset();
     m_track_node               = Graph::UNKNOWN_SECTOR;
@@ -308,7 +345,7 @@ void SkiddingAI::update(int ticks)
 
     if( m_world->isStartPhase() )
     {
-        handleRaceStart();
+		//handleRaceStart(); disabled to have fair comparison with neural network
         AIBaseLapController::update(ticks);
         return;
     }
@@ -381,9 +418,99 @@ void SkiddingAI::update(int ticks)
         }
     }
 
+    // Get distances with raycasts
+    const auto d1 = static_cast<float>(distanceToSide(M_PI / 2., m_kart->getXYZ(), CURVE_RAYCAST_PI_2L));
+    const auto d2 = static_cast<float>(distanceToSide(M_PI / 3., m_kart->getXYZ(), CURVE_RAYCAST_PI_3L));
+    const auto d3 = static_cast<float>(distanceToSide(M_PI / 6., m_kart->getXYZ(), CURVE_RAYCAST_PI_6L));
+    const auto d4 = static_cast<float>(distanceToSide(0., m_kart->getXYZ(), CURVE_RAYCAST_FRONT));
+    const auto d5 = static_cast<float>(distanceToSide(M_PI / -6., m_kart->getXYZ(), CURVE_RAYCAST_PI_6R));
+    const auto d6 = static_cast<float>(distanceToSide(M_PI / -3., m_kart->getXYZ(), CURVE_RAYCAST_PI_3R));
+    const auto d7 = static_cast<float>(distanceToSide(M_PI / -2., m_kart->getXYZ(), CURVE_RAYCAST_PI_2R));
+
+    // Update the score
+    m_score += getDeltaScore(dt, d1 + d2 + d3 + d4 + d5 + d6 + d7);
+
+    // Show score
+    const irr::core::stringw str_score = std::to_string(static_cast<int>(m_score)).c_str();
+    m_kart->setOnScreenText(str_score);
+
     /*And obviously general kart stuff*/
     AIBaseLapController::update(ticks);
 }   // update
+
+//-----------------------------------------------------------------------------
+/**
+ * \brief Get the score gain during the time dt.
+ * \param dt The time during which the score gain is computed.
+ * \param dist_sum The sum of the distances to the road side. Used to penalize AI that are out of the road.
+ * \return  The score gain
+ */
+float SkiddingAI::getDeltaScore(const float dt, const float dist_sum) const
+{
+    const int sector = m_world->getTrackSector(m_kart->getWorldKartId())->getCurrentGraphNode();
+
+    if (DriveGraph::get()->getNumberOfSuccessors(sector) > 1)
+        return 0;
+
+    const DriveNode* node = DriveGraph::get()->getNode(sector);
+    const Vec3 center_line = node->getUpperCenter() - node->getLowerCenter();
+    float dscore = m_kart->getVelocity().dot(center_line.normalized()) * dt;
+
+    if (dist_sum < 1.)
+    {
+        dscore -= m_kart->getVelocity().normalized().dot(m_kart->getVelocity()) * dt;
+    }
+    return dscore;
+}  // getDeltaScore
+
+/**
+ * \brief Compute the distance to the road side following the given angle
+ * \param angle angle of distance check from ahead
+ * \param pos position of the kart
+ * \param curve the curve index to use to draw the raycast
+ * \return the distance to the road side
+ */
+float SkiddingAI::distanceToSide(const float angle, const Vec3& pos, const int curve) const
+{
+    constexpr int steps = 1000;
+    int d_node = m_track_node;
+    const Vec3 dir_vec = Vec3(0.0f, 0.f, 1.f).rotate(Vec3(0.f, 1.f, 0.f), angle).rotate(m_kart->getRotation().getAxis(), m_kart->getRotation().getAngle());
+    for (int d = 0; steps > d; ++d)
+    {
+        Vec3 step_coord = pos + dir_vec * static_cast<float>(d);
+
+        if (d_node != Graph::UNKNOWN_SECTOR &&
+            m_next_node_index[d_node] != -1)
+            DriveGraph::get()->findRoadSector(step_coord, &d_node);
+
+        if (d_node == Graph::UNKNOWN_SECTOR)
+        {
+#ifdef AI_DEBUG_RAYCAST
+            if (curve >= 0 && !GUIEngine::isNoGraphics())
+                drawRayCast(curve, step_coord);
+#endif
+            return static_cast<float>(d);
+        }
+    }
+#ifdef AI_DEBUG_RAYCAST
+    if (!GUIEngine::isNoGraphics())
+    {
+        Vec3 step_coord = pos + steps * dir_vec;
+        if (curve >= 0)
+            drawRayCast(curve, step_coord);
+    }
+#endif
+    return static_cast<float>(steps);
+}   // distanceToSide
+
+#ifdef AI_DEBUG_RAYCAST
+void SkiddingAI::drawRayCast(const int curve, const Vec3& pos) const
+{
+    m_curve[curve]->clear();
+    m_curve[curve]->addPoint(m_kart->getXYZ());
+    m_curve[curve]->addPoint(pos);
+}  // drawRayCast
+#endif
 
 //-----------------------------------------------------------------------------
 /** This function decides if the AI should brake.
@@ -2273,6 +2400,8 @@ void SkiddingAI::handleCurve()
  */
 bool SkiddingAI::canSkid(float steer_fraction)
 {
+	return false;  // Skidding is disabled in order to have fair comparisons
+
     if(fabsf(steer_fraction)>1.5f)
     {
         // If the kart has to do a sharp turn, but is already skidding, find
