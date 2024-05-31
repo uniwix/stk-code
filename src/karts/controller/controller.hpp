@@ -21,6 +21,8 @@
 #include <irrString.h>
 using namespace irr;
 
+#include <Network.hpp>
+
 class BareNetworkString;
 
 /**
@@ -60,6 +62,7 @@ protected:
 public:
     // Used for NAI to get a rank of all AI
     virtual float getScore() const { return 0; }
+    NeuralNetwork::Network getNeuronNetwork() const { return NeuralNetwork::Network(); };
 
                   Controller         (AbstractKart *kart);
     virtual      ~Controller         () {};

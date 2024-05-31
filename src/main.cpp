@@ -1232,6 +1232,12 @@ int handleCmdLine(bool has_server_config, bool has_parent_process)
             RaceManager::get()->setMinorMode(RaceManager::MINOR_MODE_TAI);
             break;
         }
+        case 8:
+        {
+            ServerConfig::m_server_mode = 11;
+            RaceManager::get()->setMinorMode(RaceManager::MINOR_MODE_QAI);
+            break;
+        }
         default:
             Log::warn("main", "Invalid race mode '%d' - ignored.", n);
         }
@@ -1545,6 +1551,16 @@ int handleCmdLine(bool has_server_config, bool has_parent_process)
     {
         RaceManager::get()->setSession(std::stoi(s));
     }
+
+    if (CommandLine::has("--training"))
+	{
+		RaceManager::get()->setTraining(true);
+	}
+
+    if (CommandLine::has("--no-training"))
+	{
+		RaceManager::get()->setTraining(false);
+	}
 
     // Race parameters
     if(CommandLine::has("--kartsize-debug"))

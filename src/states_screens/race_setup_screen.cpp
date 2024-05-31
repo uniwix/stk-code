@@ -45,6 +45,7 @@ const int CONFIG_CODE_GHOST     = 6;
 const int CONFIG_CODE_LAP_TRIAL = 7;
 const int CONFIG_CODE_NAI       = 8;
 const int CONFIG_CODE_TAI       = 9;
+const int CONFIG_CODE_QAI       = 10;
 
 using namespace GUIEngine;
 
@@ -150,8 +151,12 @@ void RaceSetupScreen::init()
     w2->addItem(name8, IDENT_NAI, RaceManager::getIconOf(RaceManager::MINOR_MODE_NAI));
 
     irr::core::stringw name9 = irr::core::stringw(_("Test")) + L"\n";
-    name8 += _("Test AI");
+    name9 += _("Test AI");
     w2->addItem(name9, IDENT_TAI, RaceManager::getIconOf(RaceManager::MINOR_MODE_TAI));
+
+    irr::core::stringw name10 = irr::core::stringw(_("Q-Learning")) + L"\n";
+    name10 += _("Use Q-Learning to train AI");
+    w2->addItem(name10, IDENT_QAI, RaceManager::getIconOf(RaceManager::MINOR_MODE_QAI));
 
     w2->updateItemDisplay();
 
@@ -187,6 +192,9 @@ void RaceSetupScreen::init()
         break;
     case CONFIG_CODE_TAI:
         w2->setSelection(IDENT_TAI, PLAYER_ID_GAME_MASTER, true);
+        break;
+    case CONFIG_CODE_QAI:
+        w2->setSelection(IDENT_QAI, PLAYER_ID_GAME_MASTER, true);
         break;
     }
 
@@ -290,6 +298,12 @@ void RaceSetupScreen::eventCallback(Widget* widget, const std::string& name,
         {
             RaceManager::get()->setMinorMode(RaceManager::MINOR_MODE_TAI);
             UserConfigParams::m_game_mode = CONFIG_CODE_TAI;
+            TracksAndGPScreen::getInstance()->push();
+        }
+        else if (selectedMode == IDENT_QAI)
+        {
+            RaceManager::get()->setMinorMode(RaceManager::MINOR_MODE_QAI);
+            UserConfigParams::m_game_mode = CONFIG_CODE_QAI;
             TracksAndGPScreen::getInstance()->push();
         }
         else if (selectedMode == "locked")

@@ -243,6 +243,9 @@ std::pair<RaceManager::MinorRaceModeType, RaceManager::MajorRaceModeType>
         case 10:
             return { RaceManager::MINOR_MODE_TAI,
                 RaceManager::MAJOR_MODE_SINGLE };
+        case 11:
+            return { RaceManager::MINOR_MODE_QAI,
+                RaceManager::MAJOR_MODE_SINGLE };
         default:
             break;
     }

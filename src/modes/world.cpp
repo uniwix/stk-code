@@ -42,6 +42,7 @@
 #include "karts/controller/local_player_controller.hpp"
 #include "karts/controller/skidding_ai.hpp"
 #include "karts/controller/neuron_ai.hpp"
+#include "karts/controller/qlearning_ai.hpp"
 #include "karts/controller/soccer_ai.hpp"
 #include "karts/controller/spare_tire_ai.hpp"
 #include "karts/controller/test_ai.hpp"
@@ -522,6 +523,8 @@ std::shared_ptr<AbstractKart> World::createKart
                 ai = new NeuronAI(new_kart.get());
             else if (RaceManager::get()->getMinorMode() == RaceManager::MINOR_MODE_TAI)
                 ai = new TestAI(new_kart.get());
+            else if (RaceManager::get()->getMinorMode() == RaceManager::MINOR_MODE_QAI)
+                ai = new QLearningAI(new_kart.get());
             else
                 ai = new SkiddingAI(new_kart.get());
             controller = new NetworkAIController(new_kart.get(),
@@ -591,6 +594,8 @@ Controller* World::loadAIController(AbstractKart* kart)
         turn=3;
     else if(RaceManager::get()->getMinorMode()==RaceManager::MINOR_MODE_TAI)
         turn=4;
+    else if(RaceManager::get()->getMinorMode()==RaceManager::MINOR_MODE_QAI)
+        turn=5;
     // If different AIs should be used, adjust turn (or switch randomly
     // or dependent on difficulty)
     switch(turn)
@@ -614,6 +619,9 @@ Controller* World::loadAIController(AbstractKart* kart)
             break;
 		case 4:
 			controller = new TestAI(kart);
+			break;
+        case 5:
+			controller = new QLearningAI(kart);
 			break;
         default:
             Log::warn("[World]", "Unknown AI, using default.");

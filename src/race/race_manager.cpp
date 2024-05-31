@@ -658,6 +658,7 @@ void RaceManager::startNextRace()
     else if(m_minor_mode==MINOR_MODE_NORMAL_RACE ||
 			m_minor_mode == MINOR_MODE_NAI       ||
 			m_minor_mode == MINOR_MODE_TAI       ||
+			m_minor_mode == MINOR_MODE_QAI       ||
             m_minor_mode==MINOR_MODE_TIME_TRIAL)
         World::setWorld(new StandardRace());
     else if(m_minor_mode==MINOR_MODE_LAP_TRIAL)
@@ -1308,6 +1309,7 @@ const core::stringw RaceManager::getNameOf(const MinorRaceModeType mode)
         //I18N: Game mode
         case MINOR_MODE_NAI:         return _("Training");
         case MINOR_MODE_TAI:         return _("Test");
+        case MINOR_MODE_QAI:         return _("Q-Learning");
         default: return L"";
     }
 }   // getNameOf

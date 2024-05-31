@@ -55,6 +55,7 @@ static const std::string IDENT_CUTSCENE ("CUTSCENE"        );
 static const std::string IDENT_LAP_TRIAL("LAP_TRIAL"       );
 static const std::string IDENT_NAI      ("NAI"             );
 static const std::string IDENT_TAI      ("TAI"             );
+static const std::string IDENT_QAI      ("QAI"             );
 
 /**
  * The race manager has two functions:
@@ -116,8 +117,9 @@ public:
         MINOR_MODE_NORMAL_RACE      = LINEAR_RACE(0, true),
         MINOR_MODE_TIME_TRIAL       = LINEAR_RACE(1, true),
         MINOR_MODE_FOLLOW_LEADER    = LINEAR_RACE(2, false),
-        MINOR_MODE_NAI              = LINEAR_RACE(4, true),
-        MINOR_MODE_TAI              = LINEAR_RACE(5, true),
+        MINOR_MODE_NAI              = LINEAR_RACE(3, true),
+        MINOR_MODE_TAI              = LINEAR_RACE(4, true),
+        MINOR_MODE_QAI              = LINEAR_RACE(5, true),
 
         MINOR_MODE_3_STRIKES        = BATTLE_ARENA(0),
         MINOR_MODE_FREE_FOR_ALL     = BATTLE_ARENA(1),
@@ -160,6 +162,7 @@ public:
             case MINOR_MODE_SOCCER:           return IDENT_SOCCER;
             case MINOR_MODE_NAI:              return IDENT_NAI;
             case MINOR_MODE_TAI:              return IDENT_TAI;
+            case MINOR_MODE_QAI:              return IDENT_QAI;
             default: assert(false);
                      return IDENT_STD;  // stop compiler warning
         }
@@ -184,6 +187,7 @@ public:
             case MINOR_MODE_SOCCER:         return "/gui/icons/mode_soccer.png";
             case MINOR_MODE_NAI:            return "/gui/icons/mode_ftl.png"; // TODO: NAI: Add AI trainning icon
             case MINOR_MODE_TAI:            return "/gui/icons/mode_ftl.png";
+            case MINOR_MODE_QAI:            return "/gui/icons/mode_ftl.png";
             default: assert(false); return NULL;
         }
     }   // getIconOf
@@ -207,6 +211,7 @@ public:
             case MINOR_MODE_SOCCER:         return true;
             case MINOR_MODE_NAI:            return true;
             case MINOR_MODE_TAI:            return true;
+            case MINOR_MODE_QAI:            return true;
             default: assert(false);         return false;
         }
     }   // hasAI
@@ -230,6 +235,7 @@ public:
         else if (name==IDENT_SOCCER)  return MINOR_MODE_SOCCER;
         else if (name==IDENT_NAI)     return MINOR_MODE_NAI;
         else if (name==IDENT_TAI)     return MINOR_MODE_TAI;
+        else if (name==IDENT_QAI)     return MINOR_MODE_QAI;
 
         assert(0);
         return MINOR_MODE_NONE;
@@ -307,6 +313,7 @@ public:
 private:
     static std::string m_neuron_network_file;
     int m_session = 0;
+	bool m_is_training = false;
 
     /** The kart status data for each kart. */
     std::vector<KartStatus>          m_kart_status;
@@ -476,6 +483,17 @@ public:
     {
         return m_session;
     }
+
+    bool isTraining()
+    {
+        return m_is_training;
+    }
+
+	void setTraining(bool training)
+	{
+		m_is_training = training;
+	}
+
     // ----------------------------------------------------------------------------------------
     void setMaxGoal(int max_goal)
     {
@@ -604,6 +622,7 @@ public:
             case MINOR_MODE_SOCCER:         return "soccer";
             case MINOR_MODE_NAI:         return "ai-training";
             case MINOR_MODE_TAI:         return "test-ai";
+            case MINOR_MODE_QAI:         return "q-learning";
             default: assert(false);         return "";
         }
     }
@@ -808,6 +827,8 @@ public:
     bool isNAIMode() const  { return m_minor_mode == MINOR_MODE_NAI; }
     // ----------------------------------------------------------------------------------------
     bool isTAIMode() const  { return m_minor_mode == MINOR_MODE_TAI; }
+    // ----------------------------------------------------------------------------------------
+    bool isQAIMode() const  { return m_minor_mode == MINOR_MODE_QAI; }
     // ----------------------------------------------------------------------------------------
      /** \brief Returns the number of second's decimals to display */
     int currentModeTimePrecision() const

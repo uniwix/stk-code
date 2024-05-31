@@ -179,7 +179,8 @@ void ProfileWorld::update(int ticks)
  */
 void ProfileWorld::enterRaceOverState()
 {
-    if (RaceManager::get()->getMinorMode() == RaceManager::MINOR_MODE_NAI || RaceManager::get()->getMinorMode() == RaceManager::MINOR_MODE_TAI)
+    if (   RaceManager::get()->getMinorMode() == RaceManager::MINOR_MODE_NAI
+        || RaceManager::get()->getMinorMode() == RaceManager::MINOR_MODE_TAI)
     {
 	    // Get the score of the kart
 	    auto kart = std::dynamic_pointer_cast<KartWithStats>(m_karts[0]);
@@ -248,6 +249,58 @@ void ProfileWorld::enterRaceOverState()
             pstmt->execute();  // execution de la requete sql
             
             delete pstmt;
+
+            delete con;
+            Log::verbose("Profile", "Operation done successfully! | score: %s", std::to_string(score).c_str());
+        }
+        catch (sql::SQLException e)
+        {
+            Log::fatal("Profile", "MySQL error: %s", e.what());
+        }
+    }
+    if (   RaceManager::get()->getMinorMode() == RaceManager::MINOR_MODE_QAI)
+    {
+	    // Get the score of the kart
+	    auto kart = std::dynamic_pointer_cast<KartWithStats>(m_karts[0]);
+		int score = static_cast<int>(kart->getController()->getScore());
+		try
+        {
+            // connexion au serveur MySQL
+            auto my_sql = toml::parse("C:\\Users\\jbeno\\source\\repos\\uniwix\\genetic\\GeneticC\\mysql.toml");
+            std::string host = toml::find<std::string>(my_sql, "host", "host");
+            int port = toml::find<int>(my_sql, "host", "port");
+            std::string user = toml::find<std::string>(my_sql, "client", "user");
+            std::string password = toml::find<std::string>(my_sql, "client", "password");
+            std::string database = toml::find<std::string>(my_sql, "client", "database");
+            
+            sql::Driver* driver = sql::mysql::get_driver_instance();
+            sql::Connection* con(driver->connect("tcp://" + host + ":" + std::to_string(port), user, password));
+            con->setSchema(database);  // selection de la base de donnees
+            sql::PreparedStatement* pstmt = con->prepareStatement("UPDATE Individu SET score = ? WHERE session = ?;");  // creation d'un objet pour executer des requetes sql
+
+            pstmt->setInt(1, (kart->getRescueCount() == 0) ? score : -2000);  // score
+            pstmt->setInt(2, RaceManager::get()->getSession());  // session
+
+            pstmt->execute();  // execution de la requete sql
+            
+            delete pstmt;
+
+            if (RaceManager::get()->isTraining())
+			{
+                sql::PreparedStatement* pstmt = con->prepareStatement("UPDATE individu SET reseau_bin = ? WHERE session = ?;");  // creation d'un objet pour executer des requetes sql
+
+
+                std::vector<int8_t> serialized = NeuralNetwork::serialize(kart->getController()->getNeuronNetwork().get_layers());  // serialisation du reseau
+                std::stringstream stream;
+                stream = std::stringstream(std::string(serialized.begin(), serialized.end()));
+                pstmt->setBlob(1, &stream);  // reseau
+
+                pstmt->setInt(2, -1);  // session
+
+                pstmt->execute();  // execution de la requete sql
+
+                delete pstmt;
+			}
             delete con;
             Log::verbose("Profile", "Operation done successfully! | score: %s", std::to_string(score).c_str());
         }

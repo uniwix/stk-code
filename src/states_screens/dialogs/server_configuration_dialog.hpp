@@ -95,6 +95,12 @@ public:
                 m_prev_value = 0;
                 break;
             }
+            case RaceManager::MINOR_MODE_QAI:
+            {
+                m_prev_mode = 8;
+                m_prev_value = 0;
+                break;
+            }
             default:
             {
                 m_prev_mode = 0;

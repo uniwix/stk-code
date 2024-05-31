@@ -19,8 +19,8 @@
 //  along with this program; if not, write to the Free Software
 //  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
-#ifndef HEADER_NEURON_AI_HPP
-#define HEADER_NEURON_AI_HPP
+#ifndef HEADER_QLEARNING_AI_HPP
+#define HEADER_QLEARNING_AI_HPP
 
 // Some debugging features for the AI.
 
@@ -62,10 +62,10 @@ namespace irr
 }
 
 /**
-\brief AI class for neuron networks
+\brief AI class for Q-learning
 \ingroup controller
 */
-class NeuronAI : public AIBaseLapController
+class QLearningAI : public AIBaseLapController
 {
 private:
     /*General purpose variables*/
@@ -75,6 +75,13 @@ private:
 
     /** Score of the AI, used to determine the best AI */
     float m_score;
+
+    std::vector<float> xt;
+    float qmax;
+    int imax;
+    std::vector<std::vector<float>> wires;
+    std::vector<float> q_values;
+    bool is_not_first = false;
 
     /** The last item selected for collection, for which a probability
      *  was determined. */
@@ -104,12 +111,13 @@ protected:
     unsigned int getNextSector(unsigned int index) override;
 
 public:
-                 NeuronAI(AbstractKart *kart);
-                ~NeuronAI() override;
+                 QLearningAI(AbstractKart *kart);
+                ~QLearningAI() override;
     void update      (int ticks) override;
     void reset       () override;
     virtual const irr::core::stringw& getNamePostfix() const;
     float getScore() const override { return m_score; }
+    NeuralNetwork::Network getNeuronNetwork() const { return m_neuron_network; }
 
 protected:
     bool canSkid(float steer_fraction) override { return false; }

@@ -638,6 +638,7 @@ void ServerLobby::updateTracksForMode()
     {
 		case RaceManager::MINOR_MODE_NAI:
 		case RaceManager::MINOR_MODE_TAI:
+		case RaceManager::MINOR_MODE_QAI:
         case RaceManager::MINOR_MODE_NORMAL_RACE:
         case RaceManager::MINOR_MODE_TIME_TRIAL:
         case RaceManager::MINOR_MODE_FOLLOW_LEADER:
@@ -2616,6 +2617,7 @@ void ServerLobby::startSelection(const Event *event)
     {
         case RaceManager::MINOR_MODE_NAI:
         case RaceManager::MINOR_MODE_TAI:
+        case RaceManager::MINOR_MODE_QAI:
         case RaceManager::MINOR_MODE_NORMAL_RACE:
         case RaceManager::MINOR_MODE_TIME_TRIAL:
         case RaceManager::MINOR_MODE_FOLLOW_LEADER:

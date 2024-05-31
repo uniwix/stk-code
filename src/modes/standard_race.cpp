@@ -78,6 +78,8 @@ const std::string& StandardRace::getIdent() const
         return IDENT_NAI;
     else if (RaceManager::get()->getMinorMode() == RaceManager::MINOR_MODE_TAI)
         return IDENT_TAI;
+    else if (RaceManager::get()->getMinorMode() == RaceManager::MINOR_MODE_QAI)
+        return IDENT_QAI;
     else
         return IDENT_STD;
 }   // getIdent

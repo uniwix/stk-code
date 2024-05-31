@@ -19,7 +19,7 @@
 //  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 
 
-#include "karts/controller/neuron_ai.hpp"
+#include "karts/controller/qlearning_ai.hpp"
 
 #ifdef AI_DEBUG
 #  include "graphics/irr_driver.hpp"
@@ -49,38 +49,14 @@
 #include <cmath>
 #include <iostream>
 
-/*
-static int callback(void* NotUsed, int argc, char** argv, char** azColName) {
-	for (int i = 0; i < 11; ++i) {
-        for (int j = 0; j < 6; ++j) {
-            for (int k = 0; k < argc; ++k) {
-                if (std::string(azColName[k]) == "coef_0_" + std::to_string(i) + "_" + std::to_string(j)) {
-					gloal_network[0][i][j] = std::stof(argv[k]);
-                }
-			}
-		}
-	}
-    for (int i = 0; i < 6; ++i) {
-		for (int j = 0; j < 3; ++j) {
-			for (int k = 0; k < argc; ++k) {
-				if (std::string(azColName[k]) == "coef_1_" + std::to_string(i) + "_" + std::to_string(j)) {
-					gloal_network[1][i][j] = std::stof(argv[k]);
-				}
-			}
-		}
-	}
-	return 0;
-}*/
-
-
-NeuronAI::NeuronAI(AbstractKart *kart)
+QLearningAI::QLearningAI(AbstractKart *kart)
                    : AIBaseLapController(kart)
 {
     m_item_manager = Track::getCurrentTrack()->getItemManager();
-    NeuronAI::reset();
+    QLearningAI::reset();
     m_score = 0.f;
 
-    AIBaseController::setControllerName("NeuronNetwork");
+    AIBaseController::setControllerName("QLearning");
 
     // Draw raycast lines
 #ifdef AI_DEBUG
@@ -130,8 +106,10 @@ NeuronAI::NeuronAI(AbstractKart *kart)
     {
         try
         {
-            Log::info("NeuronAI", ("Using Network: " + RaceManager::get()->getNeuronNetworkFile()).c_str());
-            Log::info("NeuronAI", ("Using Session: " + std::to_string(RaceManager::get()->getSession())).c_str());
+			if (RaceManager::get()->isTraining())
+                Log::info("QLearningAI", "Training stored Network");
+            else
+                Log::info("QLearningAI", "Using stored Network");
 
             // connexion au serveur MySQL
             auto my_sql = toml::parse("C:\\Users\\jbeno\\source\\repos\\uniwix\\genetic\\GeneticC\\mysql.toml");
@@ -144,26 +122,14 @@ NeuronAI::NeuronAI(AbstractKart *kart)
             sql::Driver* driver = sql::mysql::get_driver_instance();
             sql::Connection* con(driver->connect("tcp://" + host + ":" + std::to_string(port), user, password));
             con->setSchema(database);  // selection de la base de donnees
-            sql::PreparedStatement* pstmt = con->prepareStatement("SELECT reseau_bin, rec FROM Individu WHERE CONCAT(\"GEN\", generation, \"IND\", individu) = ? AND session = ?;");  // creation d'un objet pour executer des requetes sql
+            sql::PreparedStatement* pstmt = con->prepareStatement("SELECT reseau_bin, rec FROM Individu WHERE session = ?;");  // creation d'un objet pour executer des requetes sql
             
-            pstmt->setString(1, RaceManager::get()->getNeuronNetworkFile());
-            pstmt->setInt(2, RaceManager::get()->getSession());
+            pstmt->setInt(1, RaceManager::get()->getSession());
             
             sql::ResultSet* res = pstmt->executeQuery();  // execution de la requete sql
             std::vector<std::vector<std::vector<float>>> gloal_network{ std::vector<std::vector<float>>(6, std::vector<float>(11)), std::vector<std::vector<float>>(3, std::vector<float>(6)) };
             if (res->next())
             {
-                /*
-                for (int i = 0; i < 11; ++i) {
-                    for (int j = 0; j < 6; ++j) {
-                        gloal_network[0][j][i] = res->getDouble("coef_0_" + std::to_string(i) + "_" + std::to_string(j));
-                    }
-                }
-                for (int i = 0; i < 6; ++i) {
-                    for (int j = 0; j < 3; ++j) {
-                        gloal_network[1][j][i] = res->getDouble("coef_1_" + std::to_string(i) + "_" + std::to_string(j));
-                    }
-                }*/
                 std::istream* blob = res->getBlob("reseau_bin");
                 std::istreambuf_iterator<char> isb = std::istreambuf_iterator<char>(*blob);
                 std::vector<std::vector<std::vector<float>>> network = NeuralNetwork::deserialize({ isb, std::istreambuf_iterator<char>() });
@@ -175,7 +141,7 @@ NeuronAI::NeuronAI(AbstractKart *kart)
             }
             else
             {
-                Log::fatal("NeuronAI", "No data found");
+                Log::fatal("QLearningAI", "No data found");
             }
             delete res;
             delete pstmt;
@@ -183,50 +149,28 @@ NeuronAI::NeuronAI(AbstractKart *kart)
         }
         catch (sql::SQLException e)
         {
-            Log::fatal("NeuronAI", "SQL error: %s", e.what());
+            Log::fatal("QLearningAI", "SQL error: %s", e.what());
         }
-        /*
-        int rc;
-        char *zErrMsg = 0;
-        sqlite3 *db;
-        //std::ifstream file(R"(C:\Users\jbeno\source\repos\uniwix\AI\vec\)" + RaceManager::get()->getNeuronNetworkFile() + ".txt");
-        rc = sqlite3_open("C:\\Users\\jbeno\\source\\repos\\uniwix\\genetic\\genetic.sqlite", &db);
-        if (rc) {
-            Log::fatal("NeuronAI", "Can't open database: %s", sqlite3_errmsg(db));
-            exit(0);
-        }
-        else {
-            Log::info("NeuronAI", "Opened database successfully");
-        }
-        std::stringstream sql;
-        sqlite3_exec(db, sql.str().c_str(), callback, 0, &zErrMsg);
-        if (rc != SQLITE_OK) {
-			Log::fatal("NeuronAI", "SQL error: %s", zErrMsg);
-			sqlite3_free(zErrMsg);
-            exit(0);
-		}
-		else {
-			Log::verbose("NeuronAI", "Data imported");
-		}
-        sqlite3_close(db);*/
-        /*assert(m_neuron_network.get_layers().size() == 2);
-        assert(m_neuron_network.get_layers()[0].size() == 6);
-        assert(m_neuron_network.get_layers()[0][0].size() == 11);
-        assert(m_neuron_network.get_layers()[1].size() == 3);
-        assert(m_neuron_network.get_layers()[1][0].size() == 6);*/
     }
     else
     {
 
-        Log::info("NeuronAI", ("Using Network file not working: " + RaceManager::get()->getNeuronNetworkFile()).c_str());
-        m_neuron_network = NeuralNetwork::Network(std::vector<int>({ 11, 6, 3 }));
+        Log::info("QLearningAI", ("Using Network file not working: " + RaceManager::get()->getNeuronNetworkFile()).c_str());
+        m_neuron_network = NeuralNetwork::Network(11, 6, 10, 3);
+
     }
+
+    xt = std::vector<float>(11);
+    qmax = 0.f;
+    imax = 0;
+    wires = std::vector<std::vector<float>>(m_neuron_network.getWireCount());
+    q_values = std::vector<float>(m_neuron_network.getWireCount());
 }   // NeuronAI
 
 //-----------------------------------------------------------------------------
 /** Destructor, mostly to clean up debug data structures.
  */
-NeuronAI::~NeuronAI()
+QLearningAI::~QLearningAI()
 {
 #ifdef AI_DEBUG
     if (!GUIEngine::isNoGraphics())
@@ -243,7 +187,7 @@ NeuronAI::~NeuronAI()
 //-----------------------------------------------------------------------------
 /** Resets the AI when a race is restarted.
  */
-void NeuronAI::reset()
+void QLearningAI::reset()
 {
     m_item_to_collect            = nullptr;
     m_last_item_random           = nullptr;
@@ -269,10 +213,10 @@ void NeuronAI::reset()
  *  This is used in profile mode when comparing different AI implementations
  *  to be able to distinguish them from each other.
  */
-const irr::core::stringw& NeuronAI::getNamePostfix() const
+const irr::core::stringw& QLearningAI::getNamePostfix() const
 {
     // Static to avoid returning the address of a temporary string.
-    static irr::core::stringw name="(neuron network)";
+    static irr::core::stringw name="(q-learning)";
     return name;
 }   // getNamePostfix
 
@@ -281,7 +225,7 @@ const irr::core::stringw& NeuronAI::getNamePostfix() const
  *  \param index The index of the graph node for which the successor
  *               is searched.
  */
-unsigned int NeuronAI::getNextSector(const unsigned int index)
+unsigned int QLearningAI::getNextSector(const unsigned int index)
 {
     return m_successor_index[index];
 }   // getNextSector
@@ -291,7 +235,7 @@ unsigned int NeuronAI::getNextSector(const unsigned int index)
  *  It is called once per frame for each AI and determines the behaviour of
  *  the AI, e.g. steering, accelerating/braking, firing.
  */
-void NeuronAI::update(const int ticks)
+void QLearningAI::update(const int ticks)
 {
 	const float dt = stk_config->ticks2Time(ticks);
 
@@ -310,8 +254,11 @@ void NeuronAI::update(const int ticks)
     m_controls->setNitro(false);
 
     // Don't do anything if there is currently a kart animations shown.
-    if(m_kart->getKartAnimation())
+    if (m_kart->getKartAnimation())
+    {
+        is_not_first = false;  // reset the learning
         return;
+    }
 
     if( m_world->isStartPhase() )
     {
@@ -328,6 +275,8 @@ void NeuronAI::update(const int ticks)
 	const auto d6 = static_cast<float>(distanceToSide(M_PI / -3., m_kart->getXYZ(), CURVE_RAYCAST_PI_3R));
 	const auto d7 = static_cast<float>(distanceToSide(M_PI / -2., m_kart->getXYZ(), CURVE_RAYCAST_PI_2R));
 
+    
+
     // Get the inputs for the neural network
     const std::vector<float> inputs({
         d1,
@@ -343,13 +292,136 @@ void NeuronAI::update(const int ticks)
         static_cast<float>(m_kart->getSteerPercent()),
     });
 
+    float delta_score = getDeltaScore(dt, d1+d2+d3+d4+d5+d6+d7) / 10;
+
+	
+    if ((RaceManager::get()->isTraining() || true) && is_not_first)
+	{
+        // Utilisation des informations de la base de données pour l'apprentissage
+        try
+        {
+            // connexion au serveur MySQL
+            auto my_sql = toml::parse("C:\\Users\\jbeno\\source\\repos\\uniwix\\genetic\\GeneticC\\mysql.toml");
+            std::string host = toml::find<std::string>(my_sql, "host", "host");
+            int port = toml::find<int>(my_sql, "host", "port");
+            std::string user = toml::find<std::string>(my_sql, "client", "user");
+            std::string password = toml::find<std::string>(my_sql, "client", "password");
+            std::string database = toml::find<std::string>(my_sql, "client", "database");
+
+            sql::Driver* driver = sql::mysql::get_driver_instance();
+            sql::Connection* con(driver->connect("tcp://" + host + ":" + std::to_string(port), user, password));
+            con->setSchema(database);  // selection de la base de donnees
+            sql::PreparedStatement* pstmt = con->prepareStatement("SELECT delta_score, data, imax FROM q_learning WHERE id = ?");  // creation d'un objet pour executer des requetes sql
+            int id = rand() % 1000 + 1;
+            pstmt->setInt(1, id);
+
+            sql::ResultSet* res = pstmt->executeQuery();  // execution de la requete sql
+            if (res->next())
+            {
+                float d_score = res->getDouble("delta_score");
+
+                if (d_score > -10)
+                {
+                    std::istream* blob = res->getBlob("data");
+                    std::istreambuf_iterator<char> isb = std::istreambuf_iterator<char>(*blob);
+                    std::vector<std::vector<std::vector<float>>> data = NeuralNetwork::deserialize({ isb, std::istreambuf_iterator<char>() });
+
+                    int i_max = res->getInt("imax");
+
+                    m_neuron_network.wire_fit(data[0][0], data[0][1], d_score, data[2], data[1][0], i_max, 0.1, 0.1, 0.1, 0.1);  // TODO Change the parameters
+                }
+
+                if (!m_kart->isInRest())
+                {
+                    std::vector<int8_t> serialized = NeuralNetwork::serialize({ { xt, inputs },  { q_values }, wires });
+                    std::stringstream stream;
+                    stream = std::stringstream(std::string(serialized.begin(), serialized.end()));
+
+                    pstmt = con->prepareStatement("UPDATE q_learning SET data = ?, delta_score = ?, imax = ? WHERE id = ?;");  // creation d'un objet pour executer des requetes sql
+                    pstmt->setBlob(1, &stream);
+                    pstmt->setDouble(2, delta_score);
+                    pstmt->setInt(3, imax);
+                    pstmt->setInt(4, id);
+                    pstmt->execute();
+                }
+            }
+            else
+            {
+                Log::error("QLearningAI", "No data found");
+            }
+
+            /* Not nedeed because the table is full
+            pstmt = con->prepareStatement("SELECT count(id) FROM q_learning;");  // creation d'un objet pour executer des requetes sql
+            res = pstmt->executeQuery();  // execution de la requete sql
+            if (res->next())
+            {
+                int count = res->getInt(1);
+                if (count < 1000)
+                {
+                    Log::error("QLearningAI", "No minimum in database. Adding this position.");
+                    std::vector<int8_t> data = Network::serialize({ { xt, inputs },  { q_values }, wires });
+                    std::stringstream stream;
+                    stream = std::stringstream(std::string(data.begin(), data.end()));
+
+                    pstmt = con->prepareStatement("INSERT INTO q_learning (data, delta_score, imax) VALUES (?, ?, ?);");  // creation d'un objet pour executer des requetes sql
+                    pstmt->setBlob(1, &stream);
+                    pstmt->setDouble(2, delta_score);
+                    pstmt->setInt(3, imax);
+                    pstmt->execute();
+                }
+                else
+                {
+                    Log::error("QLearningAI", "Database is full. No new data added.");
+                }
+            }
+            else
+            {
+                Log::error("QLearningAI", "No size returned while looking in q_learning table");
+            }*/
+
+            delete res;
+            delete pstmt;
+            delete con;
+        }
+        catch (sql::SQLException e)
+        {
+            Log::fatal("QLearningAI", "SQL error: %s", e.what());
+        }
+
+		m_neuron_network.wire_fit(xt, inputs, delta_score, wires, q_values, imax, 0.1, 0.1, 0.1, 0.1);
+	}
+    else
+    {
+		is_not_first = true;
+    }
+
     // Compute the outputs of the neural network
-    const std::vector<float> outs = m_neuron_network.compute(inputs);
+    const std::vector<float> sorties = m_neuron_network.compute(inputs);
+ 
+	for (size_t i = 0; i < m_neuron_network.getWireCount(); ++i)
+    {
+        size_t s_index = i * (m_neuron_network.getControlsCount() + 1);
+        q_values[i] = sorties[s_index];
+        wires[i] = std::vector<float>( sorties.begin() + s_index + 1, sorties.begin() + s_index + m_neuron_network.getControlsCount() + 1 );
+	}
+
+
+    qmax = 0.f;
+    imax = 0;
+
+    for (int i = 0; i < m_neuron_network.getWireCount(); ++i)
+    {
+        if (q_values[i] > qmax)
+        {
+            qmax = q_values[i];
+            imax = i;
+        }
+    }
     
     // Get the outputs in the right format
-    const auto steer(static_cast<float>(outs[0]));
-	const auto acc(static_cast<float>(outs[1]));
-    const bool brake = outs[2] < 0.;
+    const auto steer(static_cast<float>(wires[imax][0]));
+	const auto acc(static_cast<float>(wires[imax][1]));
+    const bool brake = wires[imax][2] < 0.;
 
     // Set the controls of the kart according to the outputs of the neural network
     m_controls->setSteer(steer);
@@ -357,7 +429,7 @@ void NeuronAI::update(const int ticks)
     m_controls->setBrake(brake);
 
     // Update the score
-    m_score += getDeltaScore(dt, d1+d2+d3+d4+d5+d6+d7);
+	m_score += delta_score * dt * 10;
     
     // Show score
 	const irr::core::stringw str_score = std::to_string(static_cast<int>(m_score)).c_str();
@@ -367,7 +439,7 @@ void NeuronAI::update(const int ticks)
     AIBaseLapController::update(ticks);
 }   // update
 
-float NeuronAI::getAngle()
+float QLearningAI::getAngle()
 {
     // check if the player is going in the wrong direction
     const DriveNode* node = DriveGraph::get()->getNode(m_track_node);
@@ -381,9 +453,14 @@ float NeuronAI::getAngle()
     return angle_diff / M_PI;
 }
 
-float NeuronAI::distanceToCenter()
+float QLearningAI::distanceToCenter()
 {
     return m_world->getDistanceToCenterForKart(m_kart->getWorldKartId());
+}
+
+float min(float a, float b)
+{
+	return a < b ? a : b;
 }
 
 //-----------------------------------------------------------------------------
@@ -393,7 +470,7 @@ float NeuronAI::distanceToCenter()
  * \param dist_sum The sum of the distances to the road side. Used to penalize AI that are out of the road.
  * \return  The score gain
  */
-float NeuronAI::getDeltaScore(const float dt, const float dist_sum) const
+float QLearningAI::getDeltaScore(const float dt, const float dist_sum) const
 {
     const int sector = m_world->getTrackSector(m_kart->getWorldKartId())->getCurrentGraphNode();
 
@@ -402,11 +479,13 @@ float NeuronAI::getDeltaScore(const float dt, const float dist_sum) const
 
     const DriveNode* node = DriveGraph::get()->getNode(sector);
     const Vec3 center_line = node->getUpperCenter() - node->getLowerCenter();
-    float dscore = m_kart->getVelocity().dot(center_line.normalized()) * dt;
-    
+	if (m_kart->getSpeed() < 0.01)
+		return 0;
+    float dscore = m_kart->getVelocity().normalized().dot(center_line.normalized()) * min(m_kart->getKartProperties()->getEngineMaxSpeed(), m_kart->getSpeed());
+
     if (dist_sum < 1.)
     {
-	    dscore -= m_kart->getVelocity().normalized().dot(m_kart->getVelocity()) * dt;
+	    dscore -= m_kart->getSpeed();
     }
     return dscore;
 }  // getDeltaScore
@@ -418,7 +497,7 @@ float NeuronAI::getDeltaScore(const float dt, const float dist_sum) const
  * \param curve the curve index to use to draw the raycast
  * \return the distance to the road side
  */
-float NeuronAI::distanceToSide(const float angle, const Vec3& pos, const int curve) const
+float QLearningAI::distanceToSide(const float angle, const Vec3& pos, const int curve) const
 {
 	constexpr int steps = 1000;
     int d_node = m_track_node;
@@ -452,7 +531,7 @@ float NeuronAI::distanceToSide(const float angle, const Vec3& pos, const int cur
 }   // distanceToSide
 
 #ifdef AI_DEBUG_RAYCAST
-void NeuronAI::drawRayCast(const int curve, const Vec3 &pos) const
+void QLearningAI::drawRayCast(const int curve, const Vec3 &pos) const
 {
     m_curve[curve]->clear();
     m_curve[curve]->addPoint(m_kart->getXYZ());

@@ -1119,7 +1119,7 @@ void Kart::setRaceResult()
         // Easter egg mode only has one player, so always win
         m_race_result = true;
     }
-    else if (RaceManager::get()->getMinorMode() == RaceManager::MINOR_MODE_NAI || RaceManager::get()->getMinorMode() == RaceManager::MINOR_MODE_TAI)
+    else if (RaceManager::get()->getMinorMode() == RaceManager::MINOR_MODE_NAI || RaceManager::get()->getMinorMode() == RaceManager::MINOR_MODE_TAI || RaceManager::get()->getMinorMode() == RaceManager::MINOR_MODE_QAI)
     {
 	    // Neuron Network training allways wins
         m_race_result = true;
