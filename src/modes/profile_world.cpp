@@ -263,6 +263,8 @@ void ProfileWorld::enterRaceOverState()
 	    // Get the score of the kart
 	    auto kart = std::dynamic_pointer_cast<KartWithStats>(m_karts[0]);
 		int score = static_cast<int>(kart->getController()->getScore());
+        auto network = RaceManager::get()->getNetwork()->get_layers();
+        Log::info("Profile", "Length of network: %d", network.size());
 		try
         {
             // connexion au serveur MySQL
@@ -276,10 +278,11 @@ void ProfileWorld::enterRaceOverState()
             sql::Driver* driver = sql::mysql::get_driver_instance();
             sql::Connection* con(driver->connect("tcp://" + host + ":" + std::to_string(port), user, password));
             con->setSchema(database);  // selection de la base de donnees
-            sql::PreparedStatement* pstmt = con->prepareStatement("UPDATE Individu SET score = ? WHERE session = ?;");  // creation d'un objet pour executer des requetes sql
+            sql::PreparedStatement* pstmt = con->prepareStatement("UPDATE Individu SET score = ? WHERE session = ? AND individu = ?;");  // creation d'un objet pour executer des requetes sql
 
             pstmt->setInt(1, (kart->getRescueCount() == 0) ? score : -2000);  // score
             pstmt->setInt(2, RaceManager::get()->getSession());  // session
+			pstmt->setInt(3, std::stoi(RaceManager::get()->getNeuronNetworkFile()));  // individu
 
             pstmt->execute();  // execution de la requete sql
             
@@ -287,15 +290,17 @@ void ProfileWorld::enterRaceOverState()
 
             if (RaceManager::get()->isTraining())
 			{
-                sql::PreparedStatement* pstmt = con->prepareStatement("UPDATE individu SET reseau_bin = ? WHERE session = ?;");  // creation d'un objet pour executer des requetes sql
+                sql::PreparedStatement* pstmt = con->prepareStatement("INSERT INTO individu (session, generation, individu, piste, reseau_bin) VALUES (?, 0, ?, ?, ?);");  // creation d'un objet pour executer des requetes sql
 
+                pstmt->setInt(1, -1);  // session
+				pstmt->setInt(2, std::stoi(RaceManager::get()->getNeuronNetworkFile()) + 1);  // individu
+				pstmt->setString(3, "");  // piste
 
-                std::vector<int8_t> serialized = NeuralNetwork::serialize(kart->getController()->getNeuronNetwork().get_layers());  // serialisation du reseau
+                std::vector<int8_t> serialized = NeuralNetwork::serialize(network);  // serialisation du reseau
                 std::stringstream stream;
                 stream = std::stringstream(std::string(serialized.begin(), serialized.end()));
-                pstmt->setBlob(1, &stream);  // reseau
+                pstmt->setBlob(4, &stream);  // reseau
 
-                pstmt->setInt(2, -1);  // session
 
                 pstmt->execute();  // execution de la requete sql
 

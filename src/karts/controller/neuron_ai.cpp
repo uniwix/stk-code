@@ -150,20 +150,9 @@ NeuronAI::NeuronAI(AbstractKart *kart)
             pstmt->setInt(2, RaceManager::get()->getSession());
             
             sql::ResultSet* res = pstmt->executeQuery();  // execution de la requete sql
-            std::vector<std::vector<std::vector<float>>> gloal_network{ std::vector<std::vector<float>>(6, std::vector<float>(11)), std::vector<std::vector<float>>(3, std::vector<float>(6)) };
+            
             if (res->next())
             {
-                /*
-                for (int i = 0; i < 11; ++i) {
-                    for (int j = 0; j < 6; ++j) {
-                        gloal_network[0][j][i] = res->getDouble("coef_0_" + std::to_string(i) + "_" + std::to_string(j));
-                    }
-                }
-                for (int i = 0; i < 6; ++i) {
-                    for (int j = 0; j < 3; ++j) {
-                        gloal_network[1][j][i] = res->getDouble("coef_1_" + std::to_string(i) + "_" + std::to_string(j));
-                    }
-                }*/
                 std::istream* blob = res->getBlob("reseau_bin");
                 std::istreambuf_iterator<char> isb = std::istreambuf_iterator<char>(*blob);
                 std::vector<std::vector<std::vector<float>>> network = NeuralNetwork::deserialize({ isb, std::istreambuf_iterator<char>() });
@@ -403,7 +392,7 @@ float NeuronAI::getDeltaScore(const float dt, const float dist_sum) const
     const DriveNode* node = DriveGraph::get()->getNode(sector);
     const Vec3 center_line = node->getUpperCenter() - node->getLowerCenter();
     float dscore = m_kart->getVelocity().dot(center_line.normalized()) * dt;
-    
+
     if (dist_sum < 1.)
     {
 	    dscore -= m_kart->getVelocity().normalized().dot(m_kart->getVelocity()) * dt;

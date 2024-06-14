@@ -122,12 +122,13 @@ QLearningAI::QLearningAI(AbstractKart *kart)
             sql::Driver* driver = sql::mysql::get_driver_instance();
             sql::Connection* con(driver->connect("tcp://" + host + ":" + std::to_string(port), user, password));
             con->setSchema(database);  // selection de la base de donnees
-            sql::PreparedStatement* pstmt = con->prepareStatement("SELECT reseau_bin, rec FROM Individu WHERE session = ?;");  // creation d'un objet pour executer des requetes sql
+            sql::PreparedStatement* pstmt = con->prepareStatement("SELECT reseau_bin, rec FROM Individu WHERE session = ? and individu = ?;");  // creation d'un objet pour executer des requetes sql
             
             pstmt->setInt(1, RaceManager::get()->getSession());
+            pstmt->setInt(2, std::stoi(RaceManager::get()->getNeuronNetworkFile()));
             
             sql::ResultSet* res = pstmt->executeQuery();  // execution de la requete sql
-            std::vector<std::vector<std::vector<float>>> gloal_network{ std::vector<std::vector<float>>(6, std::vector<float>(11)), std::vector<std::vector<float>>(3, std::vector<float>(6)) };
+            
             if (res->next())
             {
                 std::istream* blob = res->getBlob("reseau_bin");
@@ -138,6 +139,8 @@ QLearningAI::QLearningAI(AbstractKart *kart)
                 std::vector<bool> rec_vector = NeuralNetwork::decode(rec, network.size() + 1);
 	            
                 m_neuron_network = NeuralNetwork::Network(network, rec_vector);
+
+                Log::info("QLearningAI", "Network loaded");
             }
             else
             {
@@ -156,7 +159,7 @@ QLearningAI::QLearningAI(AbstractKart *kart)
     {
 
         Log::info("QLearningAI", ("Using Network file not working: " + RaceManager::get()->getNeuronNetworkFile()).c_str());
-        m_neuron_network = NeuralNetwork::Network(11, 6, 10, 3);
+        m_neuron_network = NeuralNetwork::Network(11, 6, 5, 3);
 
     }
 
@@ -165,6 +168,9 @@ QLearningAI::QLearningAI(AbstractKart *kart)
     imax = 0;
     wires = std::vector<std::vector<float>>(m_neuron_network.getWireCount());
     q_values = std::vector<float>(m_neuron_network.getWireCount());
+
+	Log::info("QLearningAI", "QLearningAI controller created");
+	RaceManager::get()->setNetwork(&m_neuron_network);
 }   // NeuronAI
 
 //-----------------------------------------------------------------------------
@@ -288,16 +294,16 @@ void QLearningAI::update(const int ticks)
     	d7,
         static_cast<float>(getAngle()),
         static_cast<float>(distanceToCenter()),
-        static_cast<float>(m_kart->getSpeed()),
+		static_cast<float>(m_kart->getSpeed()),
         static_cast<float>(m_kart->getSteerPercent()),
     });
 
-    float delta_score = getDeltaScore(dt, d1+d2+d3+d4+d5+d6+d7) / 10;
+    float delta_score = getDeltaScore(dt, d1+d2+d3+d4+d5+d6+d7) / 10.f;
 
 	
     if ((RaceManager::get()->isTraining() || true) && is_not_first)
 	{
-        // Utilisation des informations de la base de données pour l'apprentissage
+        /*/ Utilisation des informations de la base de données pour l'apprentissage
         try
         {
             // connexion au serveur MySQL
@@ -328,10 +334,10 @@ void QLearningAI::update(const int ticks)
 
                     int i_max = res->getInt("imax");
 
-                    m_neuron_network.wire_fit(data[0][0], data[0][1], d_score, data[2], data[1][0], i_max, 0.1, 0.1, 0.1, 0.1);  // TODO Change the parameters
+                    m_neuron_network.wire_fit(data[0][0], data[0][1], d_score, data[2], data[1][0], i_max, 0.1, 0.1, 0.0000001, 0.);  // TODO Change the parameters
                 }
 
-                if (!m_kart->isInRest())
+                if (!exit_next_time)
                 {
                     std::vector<int8_t> serialized = NeuralNetwork::serialize({ { xt, inputs },  { q_values }, wires });
                     std::stringstream stream;
@@ -377,7 +383,7 @@ void QLearningAI::update(const int ticks)
             else
             {
                 Log::error("QLearningAI", "No size returned while looking in q_learning table");
-            }*/
+            }*//*
 
             delete res;
             delete pstmt;
@@ -386,9 +392,14 @@ void QLearningAI::update(const int ticks)
         catch (sql::SQLException e)
         {
             Log::fatal("QLearningAI", "SQL error: %s", e.what());
-        }
+        }*/
 
-		m_neuron_network.wire_fit(xt, inputs, delta_score, wires, q_values, imax, 0.1, 0.1, 0.1, 0.1);
+		m_neuron_network.wire_fit(xt, inputs, delta_score, wires, q_values, imax, 1, 0.5, 0.0000001, 0);
+        if (exit_next_time)
+        {
+            World::getWorld()->enterRaceOverState();
+            return;
+        }
 	}
     else
     {
@@ -470,7 +481,7 @@ float min(float a, float b)
  * \param dist_sum The sum of the distances to the road side. Used to penalize AI that are out of the road.
  * \return  The score gain
  */
-float QLearningAI::getDeltaScore(const float dt, const float dist_sum) const
+float QLearningAI::getDeltaScore(const float dt, const float dist_sum)
 {
     const int sector = m_world->getTrackSector(m_kart->getWorldKartId())->getCurrentGraphNode();
 
@@ -485,7 +496,8 @@ float QLearningAI::getDeltaScore(const float dt, const float dist_sum) const
 
     if (dist_sum < 1.)
     {
-	    dscore -= m_kart->getSpeed();
+        exit_next_time = true;
+        dscore = -20.f;  //-= m_kart->getSpeed();
     }
     return dscore;
 }  // getDeltaScore

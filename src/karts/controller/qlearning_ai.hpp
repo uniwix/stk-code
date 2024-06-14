@@ -82,6 +82,7 @@ private:
     std::vector<std::vector<float>> wires;
     std::vector<float> q_values;
     bool is_not_first = false;
+    bool exit_next_time = false;
 
     /** The last item selected for collection, for which a probability
      *  was determined. */
@@ -99,7 +100,7 @@ private:
     NeuralNetwork::Network m_neuron_network;
 
     float distanceToSide(float angle, const Vec3& pos, int curve=-1) const;
-    float getDeltaScore(float dt, float dist_sum) const;
+    float getDeltaScore(float dt, float dist_sum);
     float getAngle();
     float distanceToCenter();
 

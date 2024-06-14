@@ -156,11 +156,13 @@ public:
     }   // exists
     // ------------------------------------------------------------------------
     /** Returns the singleton. This function will not automatically create
-     *  the singleton. */
+     *  the singleton. (Now it does) */
     static RewindManager *get()
     {
         ProcessType pt = STKProcess::getType();
-        assert(m_rewind_manager[pt]);
+        if (!m_rewind_manager[pt])
+            return create();
+        //assert(m_rewind_manager[pt]);
         return m_rewind_manager[pt];
     }   // get
 

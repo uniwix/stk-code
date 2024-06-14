@@ -31,6 +31,8 @@
 #include <cassert>
 #include <string>
 
+#include <Network.hpp>
+
 #include "network/remote_kart_info.hpp"
 #include "race/grand_prix_data.hpp"
 #include "utils/stk_process.hpp"
@@ -312,6 +314,7 @@ public:
     };   // KartStatus
 private:
     static std::string m_neuron_network_file;
+    NeuralNetwork::Network* m_neural_network;
     int m_session = 0;
 	bool m_is_training = false;
 
@@ -493,6 +496,9 @@ public:
 	{
 		m_is_training = training;
 	}
+
+    NeuralNetwork::Network* getNetwork() { return m_neural_network; }
+    void setNetwork(NeuralNetwork::Network* network) { m_neural_network = network; }
 
     // ----------------------------------------------------------------------------------------
     void setMaxGoal(int max_goal)
